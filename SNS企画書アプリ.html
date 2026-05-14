@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNS企画書アプリ</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --border: #e5e5e0;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #ff2c55;
+    --accent-2: #833ab4;
+    --ok: #16a34a;
+    --warn: #d97706;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  /* Sidebar */
+  .sidebar {
+    background: linear-gradient(180deg, #1a1a1a 0%, #2a1a2e 100%);
+    color: #fff;
+    padding: 20px 0;
+  }
+  .brand {
+    padding: 0 20px 20px;
+    font-weight: 700;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 16px;
+  }
+  .brand .small { display: block; font-size: 11px; color: #aaa; font-weight: 400; margin-top: 4px; }
+  .nav { list-style: none; padding: 0; margin: 0; }
+  .nav li {
+    padding: 10px 20px;
+    cursor: pointer;
+    color: #d0d0d0;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .nav li:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .nav li.active {
+    background: rgba(255,44,85,0.12);
+    border-left-color: var(--accent);
+    color: #fff;
+  }
+  .nav li .icon { display: inline-block; width: 20px; text-align: center; margin-right: 8px; }
+  .sidebar-footer {
+    position: fixed;
+    bottom: 16px;
+    left: 0;
+    width: 220px;
+    padding: 0 20px;
+    font-size: 11px;
+    color: #888;
+  }
+  /* Main */
+  .main { padding: 28px 36px; overflow-y: auto; }
+  .page-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .page-header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  .page-header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  /* Cards */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    margin: 0 0 12px 0; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .badge {
+    background: var(--accent); color: #fff; font-size: 10px;
+    padding: 2px 6px; border-radius: 3px; font-weight: 600;
+  }
+  /* Forms */
+  label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #333; }
+  label .opt { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+  input[type=text], input[type=date], input[type=datetime-local], input[type=number],
+  select, textarea {
+    width: 100%; padding: 8px 10px; font-size: 13px;
+    border: 1px solid var(--border); border-radius: 5px; background: #fff;
+    font-family: inherit; line-height: 1.5;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .field { margin-bottom: 12px; }
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 5px; font-size: 13px;
+    border: 1px solid var(--border); background: #fff; color: var(--text);
+    cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: all 0.1s;
+  }
+  .btn:hover { background: #f0f0f0; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #e02347; }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn-ghost:hover { background: rgba(0,0,0,0.04); color: var(--text); }
+  .btn-danger { color: #c62828; }
+  .btn-danger:hover { background: #fdecea; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; background: #fafafa; font-size: 12px; }
+  /* Tags */
+  .tag {
+    display: inline-block; padding: 2px 8px; font-size: 11px;
+    border-radius: 10px; background: #efefef; color: #333; margin-right: 4px;
+  }
+  .tag.tiktok { background: #fee; color: #c62828; }
+  .tag.reels { background: linear-gradient(45deg, #f9ce34, #ee2a7b, #6228d7); color: #fff; }
+  .tag.shorts { background: #fff0f0; color: #cc0000; }
+  .tag.draft { background: #fff8e1; color: #b26a00; }
+  .tag.review { background: #e3f2fd; color: #1565c0; }
+  .tag.approved { background: #e8f5e9; color: #2e7d32; }
+  .tag.posted { background: #f3e5f5; color: #6a1b9a; }
+  /* Category tags */
+  .tag.cat-dance { background: #fce4ec; color: #c2185b; }
+  .tag.cat-challenge { background: #fff3e0; color: #e65100; }
+  .tag.cat-recruit { background: #e0f2f1; color: #00695c; }
+  .tag.cat-news { background: #e1f5fe; color: #0277bd; }
+  .tag.cat-entertainment { background: #fff8e1; color: #c17e00; }
+  .tag.cat-howto { background: #e8f5e9; color: #2e7d32; }
+  .tag.cat-vlog { background: #f3e5f5; color: #6a1b9a; }
+  .tag.cat-product { background: #ffebee; color: #c62828; }
+  .tag.cat-story { background: #ede7f6; color: #4527a0; }
+  .tag.cat-interview { background: #e8eaf6; color: #283593; }
+  .tag.cat-other { background: #eceff1; color: #455a64; }
+  /* Plans list */
+  .plan-list-item {
+    display: grid; grid-template-columns: 1fr auto auto auto auto;
+    gap: 10px; align-items: center;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; margin-bottom: 8px; cursor: pointer;
+    transition: all 0.1s;
+  }
+  .plan-list-item:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .plan-list-item .title { font-weight: 600; }
+  .plan-list-item .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  /* Trends */
+  .trend-link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .trend-link {
+    display: block; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; text-decoration: none; color: var(--text);
+    transition: all 0.1s;
+  }
+  .trend-link:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .trend-link .name { font-weight: 600; font-size: 13px; }
+  .trend-link .desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .trend-link .platform { font-size: 10px; color: var(--accent); margin-top: 4px; font-weight: 600; }
+  /* Snapshot */
+  .snapshot-box {
+    background: linear-gradient(135deg, #fff5f7, #f5f0ff);
+    border: 1px solid #f0d6e0;
+    border-radius: 8px; padding: 16px 18px;
+  }
+  .snapshot-box .updated { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .snapshot-empty { color: var(--muted); font-style: italic; font-size: 13px; }
+  /* Hook options */
+  .hook-row { display: grid; grid-template-columns: 30px 1fr 1fr auto; gap: 8px; align-items: start; margin-bottom: 8px; }
+  .hook-row .label-cell { font-weight: 700; color: var(--accent); padding-top: 8px; text-align: center; }
+  /* Script table */
+  .script-table input, .script-table textarea { font-size: 12px; padding: 4px 6px; }
+  .script-table th { font-size: 11px; }
+  .script-table td { padding: 4px 6px; }
+  .script-row-num { width: 30px; text-align: center; color: var(--muted); font-weight: 600; }
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 10px; padding: 24px;
+    max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+  }
+  pre.export {
+    background: #1e1e1e; color: #e0e0e0; padding: 16px;
+    border-radius: 6px; font-size: 12px; overflow-x: auto;
+    max-height: 400px; line-height: 1.5;
+  }
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; padding: 10px 18px;
+    border-radius: 6px; font-size: 13px; z-index: 100;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  /* Dashboard stats */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat {
+    background: #fff; border: 1px solid var(--border);
+    padding: 14px 16px; border-radius: 8px;
+  }
+  .stat .num { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat .lbl { font-size: 11px; color: var(--muted); }
+  .empty {
+    text-align: center; color: var(--muted); padding: 40px 20px;
+    background: #fff; border: 1px dashed var(--border); border-radius: 8px;
+  }
+  .hidden { display: none !important; }
+  /* Calendar */
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  }
+  .cal-head { background: #fafafa; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; color: #555; }
+  .cal-head.sun { color: #c62828; }
+  .cal-head.sat { color: #1565c0; }
+  .cal-cell {
+    background: #fff; min-height: 96px; padding: 6px;
+    font-size: 11px; position: relative;
+  }
+  .cal-cell.other-month { background: #fafafa; color: #bbb; }
+  .cal-cell.today { background: #fff8f0; }
+  .cal-cell .date { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+  .cal-cell.today .date { color: var(--accent); }
+  .cal-cell.sun .date { color: #c62828; }
+  .cal-cell.sat .date { color: #1565c0; }
+  .cal-chip {
+    display: block; padding: 3px 6px; margin-bottom: 3px;
+    background: var(--accent); color: #fff;
+    border-radius: 3px; font-size: 10px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cal-chip:hover { opacity: 0.85; }
+  /* KPI table */
+  .kpi-table th { font-size: 11px; padding: 6px 8px; }
+  .kpi-table td { font-size: 12px; padding: 6px 8px; }
+  .kpi-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  /* News article style */
+  .news-masthead {
+    text-align: center; padding: 18px 0 14px;
+    border-top: 4px solid #1a1a1a; border-bottom: 1px solid var(--border);
+    margin-bottom: 24px; background: #fff;
+  }
+  .news-masthead .title {
+    font-family: "Times New Roman", "游明朝", "Yu Mincho", serif;
+    font-size: 36px; font-weight: 900; letter-spacing: 2px; margin: 0;
+  }
+  .news-masthead .date {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    letter-spacing: 4px; text-transform: uppercase;
+  }
+  .news-masthead .updated-badge {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-size: 10px; padding: 2px 8px; border-radius: 2px;
+    margin-left: 8px; vertical-align: middle; letter-spacing: 1px;
+  }
+  .news-section {
+    margin-bottom: 32px;
+  }
+  .news-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; margin-bottom: 14px;
+    border-bottom: 2px solid #1a1a1a;
+  }
+  .news-section-head .label {
+    font-family: "Times New Roman", "游明朝", "Yu Mincho", serif;
+    font-size: 18px; font-weight: 700; letter-spacing: 1px;
+  }
+  .news-section-head .count {
+    font-size: 11px; color: var(--muted);
+  }
+  .news-subsection {
+    font-size: 11px; color: #888; letter-spacing: 2px;
+    text-transform: uppercase; margin: 14px 0 8px;
+    padding-bottom: 4px; border-bottom: 1px dashed var(--border);
+  }
+  .news-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .article-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 16px; transition: all 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .article-card:hover {
+    border-color: #1a1a1a; box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .article-card .meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .article-card .section-name {
+    background: #1a1a1a; color: #fff; padding: 2px 6px;
+    font-size: 9px; font-weight: 600;
+  }
+  .article-card .headline {
+    font-family: "游明朝", "Yu Mincho", "Times New Roman", serif;
+    font-size: 16px; font-weight: 700; line-height: 1.4;
+    margin: 4px 0 8px; color: #1a1a1a;
+  }
+  .article-card .lead {
+    font-size: 12px; color: #555; line-height: 1.6;
+    margin: 0 0 12px;
+  }
+  .article-card .cats {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px;
+  }
+  .article-card .actions {
+    margin-top: auto; padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .article-card .btn-draft {
+    width: 100%; font-size: 12px; padding: 6px 10px;
+    background: #1a1a1a; color: #fff; border: none; border-radius: 4px;
+    cursor: pointer; font-family: inherit; font-weight: 600;
+    transition: background 0.1s;
+  }
+  .article-card .btn-draft:hover { background: var(--accent); }
+  .article-card.featured {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #1a1a1a, #2a1a2e);
+    color: #fff; border-color: #1a1a1a;
+  }
+  .article-card.featured .headline { color: #fff; font-size: 22px; }
+  .article-card.featured .lead { color: #ddd; font-size: 13px; }
+  .article-card.featured .meta { color: #aaa; }
+  .article-card.featured .section-name { background: var(--accent); }
+  .article-card.featured .actions { border-color: rgba(255,255,255,0.1); }
+  .article-card.featured .btn-draft { background: var(--accent); }
+  .article-card.featured .btn-draft:hover { background: #fff; color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      SNS企画書アプリ
+      <span class="small">TikTok / Reels / Shorts</span>
+    </div>
+    <ul class="nav">
+      <li class="active" data-view="dashboard"><span class="icon">▦</span>ダッシュボード</li>
+      <li data-view="plans"><span class="icon">▤</span>企画書一覧</li>
+      <li data-view="editor"><span class="icon">＋</span>新規企画書</li>
+      <li data-view="calendar"><span class="icon">▣</span>投稿カレンダー</li>
+      <li data-view="trends"><span class="icon">▲</span>トレンド</li>
+      <li data-view="settings"><span class="icon">⚙</span>設定</li>
+    </ul>
+    <div class="sidebar-footer">
+      データはこのブラウザにのみ保存されます<br>
+      <span id="last-saved"></span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Dashboard -->
+    <section id="view-dashboard">
+      <div class="page-header">
+        <div>
+          <h1>ダッシュボード</h1>
+          <div class="sub">今日 <span id="today-date"></span></div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">総企画書数</div></div>
+        <div class="stat"><div class="num" id="stat-draft">0</div><div class="lbl">ドラフト</div></div>
+        <div class="stat"><div class="num" id="stat-approved">0</div><div class="lbl">承認済</div></div>
+        <div class="stat"><div class="num" id="stat-posted">0</div><div class="lbl">投稿済</div></div>
+      </div>
+
+      <div class="card">
+        <h2>カテゴリ別の本数</h2>
+        <div id="category-breakdown" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
+      </div>
+
+      <div class="card">
+        <h2>最近の企画書</h2>
+        <div id="recent-plans"></div>
+      </div>
+
+      <div class="card">
+        <h2>カテゴリ別 平均KPI <span class="badge" style="background:#16a34a">投稿済から算出</span></h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:0">「投稿済」かつ実績入力済みの企画書から、カテゴリごとに平均値を算出。サンプル数が多いほど相場感の信頼度が上がります。</p>
+        <div id="kpi-aggregation"></div>
+      </div>
+
+      <div class="card">
+        <h2>今月のトレンドサマリ <span class="badge">SNAPSHOT</span></h2>
+        <div id="dashboard-snapshot"></div>
+      </div>
+    </section>
+
+    <!-- Plans list -->
+    <section id="view-plans" class="hidden">
+      <div class="page-header">
+        <div><h1>企画書一覧</h1><div class="sub">保存された企画書</div></div>
+        <button class="btn btn-primary" onclick="newPlan()">＋ 新規企画書</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="plan-search" placeholder="タイトル・クライアントで検索" style="max-width:260px" oninput="renderPlanList()">
+        <select id="plan-filter-status" onchange="renderPlanList()" style="max-width:140px">
+          <option value="">全ステータス</option>
+          <option value="draft">ドラフト</option>
+          <option value="review">確認中</option>
+          <option value="approved">承認済</option>
+          <option value="posted">投稿済</option>
+        </select>
+        <select id="plan-filter-category" onchange="renderPlanList()" style="max-width:180px">
+          <option value="">全カテゴリ</option>
+          <option value="dance">💃 ダンス</option>
+          <option value="challenge">🎯 企画・チャレンジ</option>
+          <option value="recruit">👔 採用・リクルート</option>
+          <option value="news">📰 ニュース・解説</option>
+          <option value="entertainment">🎭 エンタメ・コメディ</option>
+          <option value="howto">💡 ノウハウ・Howto</option>
+          <option value="vlog">📹 Vlog・ルーティン</option>
+          <option value="product">🛍️ 商品紹介・レビュー</option>
+          <option value="story">📖 ストーリー仕立て</option>
+          <option value="interview">🎙️ インタビュー・対談</option>
+          <option value="other">📌 その他</option>
+          <option value="__none__">未分類</option>
+        </select>
+        <select id="plan-view-mode" onchange="renderPlanList()" style="max-width:160px">
+          <option value="list">並び：更新順</option>
+          <option value="group">並び：カテゴリ別</option>
+        </select>
+      </div>
+      <div id="plan-list"></div>
+    </section>
+
+    <!-- Editor -->
+    <section id="view-editor" class="hidden">
+      <div class="page-header">
+        <div>
+          <h1 id="editor-title">新規企画書</h1>
+          <div class="sub" id="editor-meta"></div>
+        </div>
+        <div>
+          <button class="btn" onclick="exportMarkdown()">▼ Markdown出力</button>
+          <button class="btn btn-primary" onclick="savePlan()">保存</button>
+          <button class="btn btn-danger btn-sm" id="delete-btn" onclick="deleteCurrentPlan()" style="display:none">削除</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>基本情報</h2>
+        <div class="grid-2">
+          <div class="field"><label>企画タイトル *</label><input type="text" data-bind="title"></div>
+          <div class="field"><label>クライアント／案件名</label><input type="text" data-bind="client"></div>
+          <div class="field"><label>担当ディレクター</label><input type="text" data-bind="director"></div>
+          <div class="field"><label>担当クリエイター</label><input type="text" data-bind="creator"></div>
+          <div class="field"><label>撮影予定日</label><input type="date" data-bind="shootDate"></div>
+          <div class="field"><label>投稿予定日時</label><input type="datetime-local" data-bind="postDate"></div>
+        </div>
+        <div class="field">
+          <label>プラットフォーム</label>
+          <label style="display:inline-block;margin-right:14px;font-weight:400"><input type="checkbox" data-bind-check="platforms" value="tiktok"> TikTok</label>
+          <label style="display:inline-block;margin-right:14px;font-weight:400"><input type="checkbox" data-bind-check="platforms" value="reels"> Instagram Reels</label>
+          <label style="display:inline-block;font-weight:400"><input type="checkbox" data-bind-check="platforms" value="shorts"> YouTube Shorts</label>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>ステータス</label>
+            <select data-bind="status">
+              <option value="draft">ドラフト</option>
+              <option value="review">確認中</option>
+              <option value="approved">承認済</option>
+              <option value="posted">投稿済</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>コンセプトカテゴリ <span class="opt">動画の種類</span></label>
+            <select data-bind="category">
+              <option value="">未分類</option>
+              <option value="dance">💃 ダンス</option>
+              <option value="challenge">🎯 企画・チャレンジ</option>
+              <option value="recruit">👔 採用・リクルート</option>
+              <option value="news">📰 ニュース・解説</option>
+              <option value="entertainment">🎭 エンタメ・コメディ</option>
+              <option value="howto">💡 ノウハウ・Howto</option>
+              <option value="vlog">📹 Vlog・ルーティン</option>
+              <option value="product">🛍️ 商品紹介・レビュー</option>
+              <option value="story">📖 ストーリー仕立て</option>
+              <option value="interview">🎙️ インタビュー・対談</option>
+              <option value="other">📌 その他</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="editor-trend-card" style="display:none;background:linear-gradient(135deg,#fff8f9,#f7f0ff);border-color:#f0d6e0">
+        <h2>💡 このカテゴリで今効きそうなトレンド <span class="badge">2026-05</span></h2>
+        <div id="editor-trend-content" style="font-size:13px"></div>
+      </div>
+
+      <div class="card">
+        <h2>1. 目的・KPI</h2>
+        <div class="field"><label>ゴール</label><textarea data-bind="goal" placeholder="例：新商品の認知拡大／フォロワー +500"></textarea></div>
+        <div class="grid-3">
+          <div class="field"><label>再生数目標</label><input type="text" data-bind="kpiViews"></div>
+          <div class="field"><label>視聴維持率目標</label><input type="text" data-bind="kpiRetention" placeholder="例：55%"></div>
+          <div class="field"><label>保存数目標</label><input type="text" data-bind="kpiSaves"></div>
+          <div class="field"><label>シェア数目標</label><input type="text" data-bind="kpiShares"></div>
+          <div class="field"><label>プロフ遷移目標</label><input type="text" data-bind="kpiProfile"></div>
+          <div class="field"><label>フォロー転換目標</label><input type="text" data-bind="kpiFollow"></div>
+        </div>
+        <div class="field"><label>このリールが担う役割<span class="opt">認知/興味/比較検討/行動 のどの段階か</span></label><textarea data-bind="role"></textarea></div>
+      </div>
+
+      <div class="card">
+        <h2>2. ターゲット</h2>
+        <div class="grid-2">
+          <div class="field"><label>性別・年代</label><input type="text" data-bind="targetAge"></div>
+          <div class="field"><label>居住地・職業</label><input type="text" data-bind="targetLife"></div>
+        </div>
+        <div class="field"><label>悩み・課題</label><textarea data-bind="targetPain"></textarea></div>
+        <div class="field"><label>普段見ているアカウント／ジャンル</label><textarea data-bind="targetWatching"></textarea></div>
+        <div class="field"><label>インサイト（本音）</label><textarea data-bind="targetInsight"></textarea></div>
+        <div class="field"><label>ひと言ペルソナ</label><input type="text" data-bind="persona" placeholder="例：副業を始めたい27歳会社員女性"></div>
+      </div>
+
+      <div class="card">
+        <h2>3. コンセプト</h2>
+        <div class="field"><label>一行コンセプト</label><input type="text" data-bind="concept"></div>
+        <div class="field"><label>訴求軸（ベネフィット）</label><textarea data-bind="benefit"></textarea></div>
+      </div>
+
+      <div class="card">
+        <h2>4. フック（最初の3秒） <span class="badge">最重要</span></h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:0">3案出して比較してください。視聴維持率はここで7割決まります。</p>
+        <div id="hook-options"></div>
+        <div class="field" style="margin-top:12px">
+          <label>採用案と理由</label>
+          <textarea data-bind="hookDecision" placeholder="例：B案。数字＋否定で止まる確率が最も高い"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>5. 構成・台本</h2>
+        <table class="script-table">
+          <thead>
+            <tr>
+              <th>#</th><th>秒数</th><th>カット</th><th>セリフ／ナレーション</th>
+              <th>テロップ</th><th>SE／BGM</th><th>備考</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="script-body"></tbody>
+        </table>
+        <button class="btn btn-sm" style="margin-top:8px" onclick="addScriptRow()">＋ シーン追加</button>
+        <div class="field" style="margin-top:12px;max-width:200px">
+          <label>総尺（秒）</label><input type="number" data-bind="totalSec">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>6. ビジュアル要件</h2>
+        <div class="grid-2">
+          <div class="field"><label>撮影場所</label><input type="text" data-bind="location"></div>
+          <div class="field"><label>出演者</label><input type="text" data-bind="cast"></div>
+          <div class="field"><label>衣装</label><input type="text" data-bind="wardrobe"></div>
+          <div class="field"><label>小道具</label><input type="text" data-bind="props"></div>
+          <div class="field"><label>機材</label><input type="text" data-bind="gear"></div>
+          <div class="field"><label>アングル</label><input type="text" data-bind="angle"></div>
+        </div>
+        <div class="field"><label>カラートーン／編集の雰囲気</label><input type="text" data-bind="tone"></div>
+      </div>
+
+      <div class="card">
+        <h2>7. 音源・BGM</h2>
+        <div class="grid-2">
+          <div class="field"><label>使用音源</label><input type="text" data-bind="bgm"></div>
+          <div class="field"><label>音源URL</label><input type="text" data-bind="bgmUrl"></div>
+        </div>
+        <label style="display:inline-block;margin-right:14px;font-weight:400"><input type="checkbox" data-bind-bool="bgmTrending"> トレンド音源</label>
+        <label style="display:inline-block;font-weight:400"><input type="checkbox" data-bind-bool="bgmCommercial"> 商用利用可否確認済</label>
+      </div>
+
+      <div class="card">
+        <h2>8. テロップ・キャプション・ハッシュタグ</h2>
+        <div class="field"><label>テロップ方針</label><textarea data-bind="telop"></textarea></div>
+        <div class="field"><label>投稿キャプション本文</label><textarea data-bind="caption" style="min-height:100px"></textarea></div>
+        <div class="grid-2">
+          <div class="field"><label>ハッシュタグ ビッグ</label><input type="text" data-bind="hashtagBig" placeholder="#スキンケア #美容"></div>
+          <div class="field"><label>ハッシュタグ ミドル</label><input type="text" data-bind="hashtagMid"></div>
+          <div class="field"><label>ハッシュタグ スモール</label><input type="text" data-bind="hashtagSmall"></div>
+          <div class="field"><label>ブランド／独自</label><input type="text" data-bind="hashtagBrand"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>9. CTA・配慮事項</h2>
+        <div class="field"><label>CTA文言</label><input type="text" data-bind="ctaText"></div>
+        <div class="field"><label>リスク・配慮事項（薬機法／著作権／契約 等）</label><textarea data-bind="risks"></textarea></div>
+      </div>
+
+      <div class="card">
+        <h2>10. 承認・参考</h2>
+        <div class="field"><label>承認状況メモ</label><textarea data-bind="approval" placeholder="例：5/14 社内ディレクター確認済"></textarea></div>
+        <div class="field"><label>参考リール・資料リンク</label><textarea data-bind="refs"></textarea></div>
+      </div>
+
+      <div class="card">
+        <h2>11. 公開後ふりかえり <span class="badge" style="background:#16a34a">KPI集計対象</span></h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:0">ステータスを「投稿済」にすると、カテゴリ別の平均KPI集計に反映されます。</p>
+        <div class="grid-3">
+          <div class="field"><label>実績 再生数</label><input type="text" data-bind="actualViews" placeholder="例：12000"></div>
+          <div class="field"><label>実績 維持率</label><input type="text" data-bind="actualRetention" placeholder="例：55%"></div>
+          <div class="field"><label>実績 保存</label><input type="text" data-bind="actualSaves"></div>
+          <div class="field"><label>実績 シェア</label><input type="text" data-bind="actualShares"></div>
+          <div class="field"><label>実績 プロフィール遷移</label><input type="text" data-bind="actualProfile"></div>
+          <div class="field"><label>実績 フォロー転換</label><input type="text" data-bind="actualFollow"></div>
+        </div>
+        <div class="field"><label>学び・次回活かすこと</label><textarea data-bind="learnings"></textarea></div>
+      </div>
+    </section>
+
+    <!-- Calendar -->
+    <section id="view-calendar" class="hidden">
+      <div class="page-header">
+        <div><h1>投稿カレンダー</h1><div class="sub">投稿予定日ベースの月次ビュー</div></div>
+        <div>
+          <button class="btn btn-sm" onclick="calMove(-1)">◀ 前月</button>
+          <button class="btn btn-sm" onclick="calToday()">今月</button>
+          <button class="btn btn-sm" onclick="calMove(1)">翌月 ▶</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 id="cal-title" style="margin-bottom:14px"></h2>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div style="margin-top:14px;font-size:11px;color:var(--muted)">
+          ※ 投稿予定日が設定された企画書のみ表示。チップをクリックで該当企画書を開きます。色はコンセプトカテゴリに対応。
+        </div>
+      </div>
+      <div class="card">
+        <h2>この月の投稿予定一覧</h2>
+        <div id="cal-list"></div>
+      </div>
+    </section>
+
+    <!-- Trends -->
+    <section id="view-trends" class="hidden">
+      <div class="news-masthead">
+        <h1 class="title">SNS TREND DAILY</h1>
+        <div class="date" id="news-date"></div>
+      </div>
+
+      <div id="trend-news-feed"></div>
+
+      <div class="card">
+        <h2>公式トレンドソース</h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:0">クリックで外部サイトを開きます。TikTok Creative Center は特に重要 — 日本市場のリアルタイムランキングが無料で見られる唯一の公式ツール。</p>
+        <div class="trend-link-grid" id="trend-links"></div>
+      </div>
+
+      <div class="card">
+        <h2>自分の発見ログ <span class="badge" style="background:#16a34a">YOURS</span></h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:0">日々目にしたトレンドを記録すると、自分専用のナレッジが溜まります。</p>
+        <div class="grid-2">
+          <div class="field"><label>発見日</label><input type="date" id="log-date"></div>
+          <div class="field"><label>プラットフォーム</label>
+            <select id="log-platform">
+              <option value="tiktok">TikTok</option>
+              <option value="reels">Instagram Reels</option>
+              <option value="shorts">YouTube Shorts</option>
+            </select>
+          </div>
+          <div class="field"><label>種類</label>
+            <select id="log-type">
+              <option value="sound">音源</option>
+              <option value="hashtag">ハッシュタグ</option>
+              <option value="format">構成・フォーマット</option>
+              <option value="topic">話題・テーマ</option>
+              <option value="creator">クリエイター</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <div class="field"><label>名称</label><input type="text" id="log-name"></div>
+        </div>
+        <div class="field"><label>URL</label><input type="text" id="log-url"></div>
+        <div class="field"><label>メモ（なぜ流行ってる？自分の企画にどう活かす？）</label><textarea id="log-notes"></textarea></div>
+        <button class="btn btn-primary" onclick="addTrendLog()">＋ ログ追加</button>
+
+        <div style="margin-top:18px">
+          <div id="trend-log-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="hidden">
+      <div class="page-header"><div><h1>設定</h1><div class="sub">データ管理</div></div></div>
+      <div class="card">
+        <h2>データのエクスポート／インポート</h2>
+        <p style="font-size:12px;color:var(--muted)">企画書とトレンドログをまとめてJSONファイルとしてバックアップ／復元できます。別のPCに移すときも使えます。</p>
+        <button class="btn" onclick="exportJSON()">▼ 全データJSON書き出し</button>
+        <button class="btn" onclick="document.getElementById('import-file').click()">▲ JSON読み込み</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+      </div>
+      <div class="card">
+        <h2>サンプル案件の管理</h2>
+        <p style="font-size:12px;color:var(--muted)">架空のサンプル企画書（15件）を投入／削除できます。初回起動時に自動投入されます。</p>
+        <button class="btn" onclick="reSeedSamples()">▼ サンプルを再投入（重複時はスキップ）</button>
+        <button class="btn btn-danger" onclick="removeSamples()">▼ サンプルだけ削除</button>
+      </div>
+      <div class="card">
+        <h2 style="color:#c62828">全データ削除</h2>
+        <p style="font-size:12px;color:var(--muted)">このブラウザに保存された企画書とログをすべて消します。</p>
+        <button class="btn btn-danger" onclick="clearAll()">▼ 全削除</button>
+      </div>
+      <div class="card">
+        <h2>このアプリについて</h2>
+        <p style="font-size:13px;line-height:1.7">
+          このアプリはローカルHTMLファイルとして動作します。データはこのブラウザの localStorage にのみ保存され、外部に送信されません。<br>
+          ファイルパス: <code style="background:#f0f0f0;padding:2px 6px">C:\Users\浦瀬雄飛\Desktop\SNS企画書\SNS企画書アプリ.html</code><br>
+          別のブラウザで開くとデータが見えない点に注意してください。バックアップは「JSON書き出し」で。
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">Markdown出力</h3>
+      <button class="btn btn-ghost" onclick="closeModal()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted)">下のテキストをコピーして .md ファイルに貼り付け、もしくはダウンロードボタンで保存。</p>
+    <div style="margin-bottom:8px">
+      <button class="btn btn-sm" onclick="copyExport()">コピー</button>
+      <button class="btn btn-sm" onclick="downloadMd()">.mdとしてダウンロード</button>
+    </div>
+    <pre class="export" id="export-text"></pre>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============= Data layer ============= */
+const STORAGE_KEY = 'sns_kikaku_app_v1';
+let store = loadStore();
+let currentPlanId = null;
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { plans: [], trendLog: [], snapshot: null };
+}
+function saveStore() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  document.getElementById('last-saved').textContent =
+    '最終保存: ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ============= Trend snapshot (Claude-fed) ============= */
+// この変数はClaudeが「今月のトレンド更新して」と頼まれた時に書き換えます。
+const TREND_SNAPSHOT = {
+  updatedAt: '2026-05-14',
+  byPlatform: {
+    'TikTok（日本）': {
+      '🎵 人気楽曲・音源傾向': [
+        { name: 'Da-iCE「スターマイン」', note: '邦楽ダンスチャレンジ起点で拡散中', c: ['dance', 'challenge', 'entertainment'] },
+        { name: 'M!LK 関連楽曲', note: '5人組ダンスグループ。音源使用投稿9.4万件超', c: ['dance', 'challenge', 'entertainment'] },
+        { name: '昭和・平成初期J-POPサンプリング曲', note: 'レトロ／ノスタルジー文脈で再燃', c: ['story', 'vlog', 'entertainment'] },
+        { name: '短フレーズ高速テンポ曲', note: '2〜4秒カット編集との相性◎', c: ['howto', 'news', 'product'] },
+        { name: 'Map Day (Nostalgiacore)', note: '海外発、ノスタルジー系メーム多用', c: ['story', 'entertainment'] }
+      ],
+      '#️⃣ 注目ハッシュタグ・テーマ': [
+        { name: '#推し活 系（推し活グッズ・お薬手帳ケースデコ）', note: 'Z世代女性で再加熱中', c: ['vlog', 'product', 'entertainment'] },
+        { name: '#AI動画 / #AI生成', note: '生成AIで作る動画コンテンツが急増', c: ['howto', 'news'] },
+        { name: '#エモい瞬間 / ノスタルジー系', note: '昭和・平成レトロ訴求が依然強い', c: ['story', 'vlog'] },
+        { name: '#〇〇チャレンジ', note: '楽曲連動のダンス／編集チャレンジ定番枠', c: ['dance', 'challenge'] },
+        { name: '#就活 / #社員密着', note: '採用系で増加。社員1日密着・本音インタビュー型', c: ['recruit', 'interview'] }
+      ],
+      '📐 流行フォーマット': [
+        { name: '2〜4秒ごとのカット切り替え', note: 'スピード感重視。編集5分以内で完了が理想', c: ['howto', 'news', 'product', 'entertainment'] },
+        { name: '専門性 × 親しみやすさ系', note: '料理／美容／ライフハック系の人格化された解説', c: ['howto', 'interview', 'product'] },
+        { name: 'シュールな面白さ／ノスタルジー', note: '感情を強く動かす2大バズ要因', c: ['entertainment', 'story'] },
+        { name: 'ライフハック系の縦テンポ動画', note: '保存数を稼ぐ典型パターン', c: ['howto'] },
+        { name: '社員密着Vlog風（採用）', note: '裏側公開・1日ルーティン系が応募に直結', c: ['recruit', 'vlog'] }
+      ]
+    },
+    'Instagram Reels（日本）': {
+      '🎵 人気音源・テンプレ': [
+        { name: 'Disney & シャキーラ「Zoo」（ズートピア2主題歌）', note: '映画タイアップで急上昇', c: ['story', 'entertainment', 'vlog'] },
+        { name: 'マルーン5「ディス・ラヴ」', note: '写真9枚スライド系テンプレで定着', c: ['vlog', 'story', 'product'] },
+        { name: 'スリー・ドッグ・ナイト「喜びの世界」', note: '写真4枚＋動画9枚の構成が王道', c: ['vlog', 'story'] },
+        { name: '嵐「Happiness」', note: '邦楽枠の鉄板。お祝い／思い出系', c: ['vlog', 'story', 'recruit'] },
+        { name: '奥田民生「さすらい」', note: '旅・ドライブ系コンテンツ', c: ['vlog', 'story'] }
+      ],
+      '📊 アルゴリズム重み付け（2026年版）': [
+        { name: 'DMシェア数', note: 'いいね・コメントの約5倍の重み。最重要指標' },
+        { name: '完視聴率', note: '2番目に重い。短尺ループで稼ぐ設計が有効' },
+        { name: '総滞在時間', note: '長尺の深さ or 短尺の反復視聴' },
+        { name: '保存数', note: '有益性の証として高く評価' },
+        { name: 'コメント数 → プロフィール訪問', note: 'この順で重要度低下' }
+      ],
+      '📐 推奨スペック・フォーマット': [
+        { name: '冒頭2秒の2カットルール', note: '冒頭2秒で70%の継続判断。2カット切り替え必須' },
+        { name: 'ブランド公式：8〜15秒／4〜7カット', note: '著作権フリー音源推奨', c: ['product', 'recruit'] },
+        { name: '教育系：20〜45秒／8〜14カット', note: 'AIアテレコ＋BGMが主流に', c: ['howto', 'news'] },
+        { name: 'インフルエンサー：15〜35秒／6〜12カット', note: 'トレンド音源＋音声併用', c: ['vlog', 'challenge', 'product'] },
+        { name: 'ストーリー型：30〜90秒／12〜20カット', note: '感情導線で完視聴を狙う', c: ['story', 'interview', 'recruit'] }
+      ],
+      '💡 伸ばす設計テクニック': [
+        { name: '情報残し型「残り2つはコメント欄に」', note: 'ループ再生＆コメント誘発', c: ['howto', 'news'] },
+        { name: '議論誘発型「AとBどっち？」', note: 'DMシェアを生む二択提示', c: ['news', 'entertainment', 'product'] },
+        { name: '保存強制型（チェックリスト化）', note: '保存率2%超の達成パターン', c: ['howto'] },
+        { name: '週3〜5本／質優先', note: '低質日次投稿はアカウント評価を下げる' }
+      ]
+    },
+    '🔥 Z世代横断トレンド（企画ヒント）': {
+      'モノ・推し活': [
+        { name: 'お薬手帳ケースデコ', note: '推しの写真・アクスタを入れる新定番カスタム', c: ['product', 'vlog'] },
+        { name: 'Mellojoy（ふわとろスクイーズ）', note: '触感系の動画と相性◎', c: ['product', 'entertainment'] },
+        { name: 'AI動画／AI生成コンテンツ', note: '作り方系チュートリアルの需要急増', c: ['howto', 'news'] }
+      ],
+      'フード': [
+        { name: 'ヨアジョン（韓国発フローズンヨーグルト）', note: '実食レビュー／店舗紹介で再生数稼げる', c: ['product', 'vlog'] },
+        { name: 'クロッチ（クロワッサン×お餅）', note: 'グルメ系インフルエンサーで拡散中', c: ['product', 'vlog'] },
+        { name: 'マカロンシリアル', note: 'ASMR系・モーニングルーティン系と好相性', c: ['product', 'vlog'] }
+      ],
+      'ファッション・スポット': [
+        { name: 'レオパード柄（Y2Kリバイバル）', note: '2000年代柄が再ブーム', c: ['product', 'vlog'] },
+        { name: 'カバーブーツ', note: '足首カバー付き異形シルエット', c: ['product'] },
+        { name: '柴又（昭和レトロスポット）', note: 'ノスタルジー文脈の聖地巡礼系', c: ['vlog', 'story'] },
+        { name: 'My Fave Cafe（推しドール作成）', note: '推し活×体験系コンテンツ', c: ['vlog', 'story', 'product'] }
+      ],
+      'キャラクター・人物': [
+        { name: 'パペットスンスン', note: 'SNS発ユーモアキャラ。コラボ案件増', c: ['entertainment', 'challenge'] },
+        { name: 'ジュディとニック（ズートピア2）', note: '映画公開タイミングで音源も連動', c: ['entertainment', 'story'] },
+        { name: 'M!LK', note: 'ダンスチャレンジ起点アーティスト', c: ['dance', 'challenge', 'entertainment'] }
+      ]
+    }
+  }
+};
+
+/* ============= Sample plans (架空デモデータ) ============= */
+const SAMPLE_PLANS = [
+  {
+    id: 'p-sample-001',
+    title: '【春コスメ】新作リップでトレンドDANCE',
+    client: '○○コスメ株式会社', director: '浦瀬', creator: 'タカハシ',
+    category: 'dance', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-12T20:00', shootDate: '2026-04-08',
+    goal: '新作リップの認知拡大とダンスチャレンジによるUGC誘発',
+    kpiViews: '50000', kpiRetention: '55%', kpiSaves: '300', kpiShares: '150', kpiProfile: '2%', kpiFollow: '0.8%',
+    actualViews: '85000', actualRetention: '62%', actualSaves: '420', actualShares: '180', actualProfile: '2.8%', actualFollow: '0.9%',
+    concept: 'トレンド楽曲に合わせて新作リップの色違いを高速チェンジ',
+    bgm: 'Da-iCE「スターマイン」', bgmTrending: true, bgmCommercial: true, totalSec: '20',
+    targetAge: '女性18-29歳', persona: '美容好きZ世代女性',
+    hooks: [{a:'3秒で見せます今春のリップ',b:'リップ並べカット'},{a:'',b:''},{a:'',b:''}],
+    learnings: '色チェンジの瞬間が保存されやすかった。次回はBefore/Afterを2回入れる',
+    hashtagBig: '#リップ #コスメ', hashtagMid: '#春コスメ #トレンドメイク', hashtagBrand: '#○○コスメ'
+  },
+  {
+    id: 'p-sample-002',
+    title: '【3秒で変身】春の通勤コーデチャレンジ',
+    client: 'アパレルA社', director: '浦瀬', creator: 'サトウ',
+    category: 'challenge', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-22T19:30', shootDate: '2026-04-18',
+    goal: '春の新作カプセルコレクションの認知＋EC流入',
+    kpiViews: '80000', kpiRetention: '55%', kpiSaves: '500', kpiShares: '300', kpiProfile: '3%', kpiFollow: '1%',
+    actualViews: '120000', actualRetention: '58%', actualSaves: '680', actualShares: '320', actualProfile: '3.2%', actualFollow: '1.1%',
+    concept: '指パッチンで瞬間着替え。3秒で5パターンの春コーデを提示',
+    bgm: 'M!LK 関連トレンド音源', bgmTrending: true, totalSec: '15',
+    targetAge: '女性22-32歳', persona: 'OL・通勤コーデに悩む20代後半',
+    hooks: [{a:'3秒で5コーデ見せます',b:'立ち姿正面'},{a:'',b:''},{a:'',b:''}]
+  },
+  {
+    id: 'p-sample-003',
+    title: '【密着】エンジニアの1日 in 渋谷オフィス',
+    client: 'テック系スタートアップB', director: '浦瀬', creator: '内田',
+    category: 'recruit', platforms: ['tiktok', 'shorts'], status: 'posted',
+    postDate: '2026-03-28T18:00', shootDate: '2026-03-25',
+    goal: '新卒・第二新卒の認知獲得、採用ページへの遷移',
+    kpiViews: '15000', kpiRetention: '65%', kpiSaves: '200', kpiShares: '80', kpiProfile: '4%', kpiFollow: '1.2%',
+    actualViews: '24000', actualRetention: '71%', actualSaves: '290', actualShares: '110', actualProfile: '5.4%', actualFollow: '1.8%',
+    concept: '8:30出社から退社まで密着。リアルな業務とランチを淡々と見せる',
+    bgm: 'シンプルLo-fi系（著作権フリー）', bgmTrending: false, bgmCommercial: true, totalSec: '60',
+    targetAge: '20-26歳ITキャリア志望', persona: '都内私大4年・SIerと迷っている',
+    learnings: 'プロフィール遷移率が想定の1.35倍。同シリーズで職種別の継続展開を提案中'
+  },
+  {
+    id: 'p-sample-004',
+    title: '【3分解説】今週の経済ニュース要点',
+    client: '金融メディアC', director: '浦瀬', creator: 'ナレーター丸山',
+    category: 'news', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-08T07:00', shootDate: '2026-04-07',
+    goal: '若年層への経済情報リーチ、シリーズフォロワー獲得',
+    kpiViews: '40000', kpiRetention: '45%', kpiSaves: '800', kpiShares: '200', kpiProfile: '2%', kpiFollow: '0.6%',
+    actualViews: '56000', actualRetention: '48%', actualSaves: '1100', actualShares: '230', actualProfile: '2.1%', actualFollow: '0.7%',
+    concept: '日経平均・為替・要注目ニュース3つを30秒ずつ。図解とテロップ重視',
+    bgm: 'ニュース風BGM', totalSec: '90',
+    targetAge: '20-39歳ビジネスパーソン'
+  },
+  {
+    id: 'p-sample-005',
+    title: '【あるある】居酒屋店員あるある10連発',
+    client: '飲食チェーンD', director: '浦瀬', creator: 'コンノ',
+    category: 'entertainment', platforms: ['tiktok'], status: 'posted',
+    postDate: '2026-04-19T21:00', shootDate: '2026-04-16',
+    goal: '若年層への親近感醸成、シェア拡散',
+    kpiViews: '100000', kpiRetention: '60%', kpiSaves: '200', kpiShares: '800', kpiProfile: '1.5%', kpiFollow: '0.5%',
+    actualViews: '180000', actualRetention: '65%', actualSaves: '320', actualShares: '980', actualProfile: '1.8%', actualFollow: '0.6%',
+    concept: '元店員アルバイトのあるある10個を高速モンタージュ',
+    bgm: '高速テンポJ-POPサンプリング曲', bgmTrending: true, totalSec: '30',
+    targetAge: '18-29歳',
+    learnings: 'シェア数が目標の1.2倍。コメント欄での「分かる！」エンゲージが想定外に強い'
+  },
+  {
+    id: 'p-sample-006',
+    title: '【保存版】乾燥肌の夜スキンケア3ステップ',
+    client: '○○コスメ株式会社', director: '浦瀬', creator: 'タカハシ',
+    category: 'howto', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-05T20:00', shootDate: '2026-04-02',
+    goal: '保存数1000超でアルゴリズム評価獲得、商品認知',
+    kpiViews: '60000', kpiRetention: '50%', kpiSaves: '1500', kpiShares: '200', kpiProfile: '3%', kpiFollow: '1%',
+    actualViews: '95000', actualRetention: '55%', actualSaves: '1850', actualShares: '240', actualProfile: '3.5%', actualFollow: '1.3%',
+    concept: '皮膚科医監修風で「夜の正しいケア順番」を30秒で見せる',
+    bgm: 'ヒーリング系（著作権フリー）', bgmCommercial: true, totalSec: '30',
+    targetAge: '女性25-34歳乾燥肌', persona: '在宅勤務で夜だけ丁寧にケアしたい28歳女性',
+    hooks: [{a:'8割が順番間違えてます',b:'数字テロップ＋驚き顔'},{a:'乾燥肌の人、夜これやめて',b:'NG行動の手元'},{a:'皮膚科医が夜やってる3ステップ',b:'鏡前カット'}],
+    learnings: 'B案フックで本投稿。保存率2%超達成。シリーズ化決定'
+  },
+  {
+    id: 'p-sample-007',
+    title: '【週末Vlog】下北沢カフェ巡り3軒',
+    client: 'カフェチェーンE', director: '浦瀬', creator: 'マツダ',
+    category: 'vlog', platforms: ['reels'], status: 'posted',
+    postDate: '2026-04-15T11:00', shootDate: '2026-04-13',
+    goal: '若年層への店舗認知、来店誘導',
+    kpiViews: '30000', kpiRetention: '55%', kpiSaves: '400', kpiShares: '150', kpiProfile: '3%', kpiFollow: '1.2%',
+    actualViews: '42000', actualRetention: '60%', actualSaves: '530', actualShares: '180', actualProfile: '4.1%', actualFollow: '1.5%',
+    concept: '下北沢の3軒のカフェを淡々と巡る。BGM＋環境音中心、ナレーション最小限',
+    bgm: '奥田民生「さすらい」', bgmTrending: true, totalSec: '45',
+    targetAge: '女性22-30歳'
+  },
+  {
+    id: 'p-sample-008',
+    title: '【新作レビュー】コンパクトイヤホン3機種比較',
+    client: 'ガジェットF', director: '浦瀬', creator: 'タナベ',
+    category: 'product', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-26T19:00', shootDate: '2026-04-22',
+    goal: 'ECサイト遷移、購入転換',
+    kpiViews: '50000', kpiRetention: '48%', kpiSaves: '600', kpiShares: '180', kpiProfile: '4%', kpiFollow: '1%',
+    actualViews: '68000', actualRetention: '52%', actualSaves: '890', actualShares: '210', actualProfile: '4.6%', actualFollow: '1.2%',
+    concept: '3機種を「音質」「フィット感」「価格」の3軸で比較、結論先出し',
+    totalSec: '40',
+    targetAge: '20-40歳ガジェット好き'
+  },
+  {
+    id: 'p-sample-009',
+    title: '【ストーリー】田舎おばあちゃんと作る手作り味噌',
+    client: '食品メーカーG', director: '浦瀬', creator: 'ヤマモト',
+    category: 'story', platforms: ['reels'], status: 'posted',
+    postDate: '2026-04-02T18:00', shootDate: '2026-03-25',
+    goal: 'ブランドストーリー訴求、シェアによる広範囲リーチ',
+    kpiViews: '150000', kpiRetention: '65%', kpiSaves: '1000', kpiShares: '800', kpiProfile: '2.5%', kpiFollow: '1.2%',
+    actualViews: '220000', actualRetention: '73%', actualSaves: '1450', actualShares: '1200', actualProfile: '2.8%', actualFollow: '1.4%',
+    concept: '90秒の小さなドキュメンタリー。会話と手元のクローズアップで情緒訴求',
+    bgm: '昭和J-POPサンプリング曲', bgmTrending: true, totalSec: '90',
+    targetAge: '30-50歳ファミリー層',
+    learnings: 'シェア1200突破。完視聴率73%は社内記録更新。長尺ストーリー型の有効性が証明された'
+  },
+  {
+    id: 'p-sample-010',
+    title: '【経営者対談】創業10年の壁とブレイクスルー',
+    client: 'ビジネスメディアH', director: '浦瀬', creator: 'クボタ',
+    category: 'interview', platforms: ['tiktok', 'shorts'], status: 'posted',
+    postDate: '2026-03-22T19:00', shootDate: '2026-03-18',
+    goal: 'ビジネス層フォロワー獲得、本編動画(YouTube)への送客',
+    kpiViews: '20000', kpiRetention: '60%', kpiSaves: '400', kpiShares: '80', kpiProfile: '3.5%', kpiFollow: '1.3%',
+    actualViews: '31000', actualRetention: '68%', actualSaves: '540', actualShares: '95', actualProfile: '4.2%', actualFollow: '1.6%',
+    concept: '本編60分対談からインサイトの強い60秒だけを抜き出す切り抜き形式',
+    totalSec: '60',
+    targetAge: '28-45歳経営・マネジメント層'
+  },
+  {
+    id: 'p-sample-011',
+    title: '【母の日】お母さんに内緒で花束ドッキリ',
+    client: '雑貨ブランドI', director: '浦瀬', creator: '（アサイン中）',
+    category: 'entertainment', platforms: ['tiktok', 'reels'], status: 'review',
+    postDate: '2026-05-19T20:00', shootDate: '2026-05-16',
+    goal: '母の日商戦に向けたブランド認知＆EC流入',
+    kpiViews: '80000', kpiRetention: '60%', kpiSaves: '300', kpiShares: '500', kpiProfile: '3%', kpiFollow: '1%',
+    concept: '会社員の20代女性が母にサプライズで花束を渡す瞬間を密着撮影',
+    totalSec: '45',
+    targetAge: '20-40歳女性',
+    approval: '5/14 社内ディレクター確認済。クライアント確認待ち'
+  },
+  {
+    id: 'p-sample-012',
+    title: '【今年こそ】確定申告でやってはいけない3つのミス',
+    client: '税理士事務所J', director: '浦瀬', creator: '（未定）',
+    category: 'howto', platforms: ['tiktok', 'reels'], status: 'approved',
+    postDate: '2026-05-25T19:00', shootDate: '2026-05-22',
+    goal: '個人事業主への認知、無料相談予約への遷移',
+    kpiViews: '40000', kpiRetention: '55%', kpiSaves: '1200', kpiShares: '300', kpiProfile: '4%', kpiFollow: '1.5%',
+    concept: '税理士本人登場。「これだけはやめて」3つを各10秒で淡々と解説',
+    totalSec: '35',
+    targetAge: '25-45歳個人事業主・副業層',
+    hooks: [{a:'今年これやると損します',b:'書類を×に置く'},{a:'',b:''},{a:'',b:''}]
+  },
+  {
+    id: 'p-sample-013',
+    title: '【コンサル1年目】戦略コンサルタントのリアルな1日',
+    client: '戦略コンサルK社', director: '浦瀬', creator: 'イケダ',
+    category: 'recruit', platforms: ['tiktok', 'reels'], status: 'posted',
+    postDate: '2026-04-18T19:00', shootDate: '2026-04-14',
+    goal: '新卒・第二新卒の認知獲得、エントリー誘導',
+    kpiViews: '15000', kpiRetention: '60%', kpiSaves: '250', kpiShares: '80', kpiProfile: '4%', kpiFollow: '1.2%',
+    actualViews: '28000', actualRetention: '68%', actualSaves: '360', actualShares: '95', actualProfile: '5.1%', actualFollow: '1.6%',
+    concept: '朝7時の出社から深夜のリサーチまで密着。クライアント先・社内MTG・残業の実態を等身大で',
+    bgm: 'ピアノ系シンプル（著作権フリー）', bgmCommercial: true, totalSec: '60',
+    targetAge: '21-26歳コンサル志望', persona: 'MBB志望24歳大学院生',
+    hooks: [{a:'コンサル1年目の本音、聞きます？',b:'スーツで朝7時オフィス'},{a:'',b:''},{a:'',b:''}],
+    learnings: '「コンサル＝華やか」イメージとリアル業務のギャップが効いた。深夜カットの離脱が想定より少ない',
+    hashtagBig: '#コンサル #就活', hashtagMid: '#戦略コンサル #就活生と繋がりたい', hashtagBrand: '#K社採用'
+  },
+  {
+    id: 'p-sample-014',
+    title: '【座談会】文系→エンジニアになった3人の本音トーク',
+    client: 'エンジニア育成スクールL', director: '浦瀬', creator: 'ナカジマ',
+    category: 'recruit', platforms: ['tiktok', 'reels', 'shorts'], status: 'posted',
+    postDate: '2026-04-29T20:00', shootDate: '2026-04-25',
+    goal: '未経験キャリアチェンジ層への認知、スクール体験申込',
+    kpiViews: '30000', kpiRetention: '55%', kpiSaves: '500', kpiShares: '120', kpiProfile: '4%', kpiFollow: '1.3%',
+    actualViews: '47000', actualRetention: '61%', actualSaves: '780', actualShares: '160', actualProfile: '4.8%', actualFollow: '1.7%',
+    concept: '元営業・元教師・元美容師の3人が転職理由・苦労・年収を本音で語る。テンポよく60秒に編集',
+    bgm: '会話用ローテンポBGM', bgmCommercial: true, totalSec: '60',
+    targetAge: '25-32歳キャリアチェンジ志向', persona: '営業職に伸び悩む28歳男性',
+    hooks: [{a:'文系でも本当にエンジニアになれた3人です',b:'3人並びカット'},{a:'',b:''},{a:'',b:''}],
+    learnings: '年収数字を出した瞬間に維持率が跳ねる。保存も2回視聴で増加（ループ視聴）',
+    hashtagBig: '#エンジニア転職 #未経験', hashtagMid: '#プログラミング学習 #キャリアチェンジ'
+  },
+  {
+    id: 'p-sample-015',
+    title: '【ハイクラス転職】コンサルから事業会社CTOになった理由',
+    client: 'ハイクラス転職エージェントM', director: '浦瀬', creator: 'オオヤマ',
+    category: 'recruit', platforms: ['tiktok', 'reels'], status: 'approved',
+    postDate: '2026-06-02T19:30', shootDate: '2026-05-28',
+    goal: 'ハイクラス層への認知、エージェント登録誘導',
+    kpiViews: '20000', kpiRetention: '65%', kpiSaves: '400', kpiShares: '100', kpiProfile: '5%', kpiFollow: '1.5%',
+    concept: '30代前半でMBB→スタートアップCTOへ転身した本人インタビュー。決断・現役割・後悔/満足を90秒で',
+    bgm: 'シネマティック系（著作権フリー）', bgmCommercial: true, totalSec: '90',
+    targetAge: '28-38歳事業会社志望のコンサル', persona: 'MBB所属5年目、事業会社への転身を検討',
+    hooks: [{a:'MBB辞めてCTOになりました。後悔ある？',b:'本人正面アップ'},{a:'',b:''},{a:'',b:''}],
+    approval: '5/14 社内ディレクター確認済。クライアント決裁待ち',
+    hashtagBig: '#転職 #ハイクラス転職', hashtagMid: '#コンサル転職 #CTO #キャリア'
+  }
+];
+
+function seedSamples(force) {
+  const existing = new Set(store.plans.map(p => p.id));
+  let added = 0;
+  SAMPLE_PLANS.forEach(s => {
+    if (existing.has(s.id) && !force) return;
+    const sample = {
+      ...s,
+      createdAt: s.createdAt || (s.postDate ? new Date(s.postDate).toISOString() : new Date().toISOString()),
+      updatedAt: new Date().toISOString()
+    };
+    if (existing.has(s.id) && force) {
+      const idx = store.plans.findIndex(p => p.id === s.id);
+      store.plans[idx] = sample;
+    } else {
+      store.plans.push(sample);
+      added++;
+    }
+  });
+  store.seeded = true;
+  saveStore();
+  return added;
+}
+
+// 初回起動時のみ自動投入（既に企画書が存在する場合・既に seeded フラグがある場合はスキップ）
+if (store.plans.length === 0 && !store.seeded) {
+  seedSamples();
+}
+
+const TREND_LINKS = [
+  { name: 'TikTok Creative Center（日本）', desc: '人気ハッシュタグ・楽曲・動画ランキング。公式の唯一無料トレンドツール', url: 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/ja', platform: 'TikTok' },
+  { name: 'TikTok Creative Center 楽曲', desc: '急上昇している音源（地域・期間で絞り込み可）', url: 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/music/pc/ja', platform: 'TikTok' },
+  { name: 'TikTok Creative Center 動画', desc: '今バズっている動画を見る', url: 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/pc/ja', platform: 'TikTok' },
+  { name: 'TikTok Creative Center クリエイター', desc: '日本で伸びているクリエイター一覧', url: 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/creator/pc/ja', platform: 'TikTok' },
+  { name: 'Instagram Trends（公式ブログ）', desc: 'Meta公式の四半期トレンドレポート', url: 'https://about.instagram.com/blog', platform: 'Instagram' },
+  { name: 'Meta Business（リール活用ハブ）', desc: 'リール運用のベストプラクティス', url: 'https://www.facebook.com/business/help/reels', platform: 'Instagram' },
+  { name: 'YouTube ショート分析', desc: 'YouTube公式のショート向けインサイト', url: 'https://www.youtube.com/creators/shorts/', platform: 'YouTube' },
+  { name: 'Google Trends 日本', desc: '検索急上昇キーワード。話題の起点リサーチに', url: 'https://trends.google.co.jp/trends/trendingsearches/daily?geo=JP', platform: '横断' },
+  { name: 'X(Twitter) トレンド', desc: 'リアルタイム話題。Z世代の話題発見に', url: 'https://twitter.com/explore/tabs/trending', platform: '横断' },
+  { name: 'Yahoo!リアルタイム検索', desc: 'SNS横断のリアルタイム話題ランキング', url: 'https://search.yahoo.co.jp/realtime', platform: '横断' }
+];
+
+/* ============= Navigation ============= */
+document.querySelectorAll('.nav li').forEach(li => {
+  li.addEventListener('click', () => switchView(li.dataset.view));
+});
+function switchView(view) {
+  document.querySelectorAll('.nav li').forEach(li => li.classList.toggle('active', li.dataset.view === view));
+  document.querySelectorAll('.main > section').forEach(s => s.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'plans') renderPlanList();
+  if (view === 'trends') renderTrends();
+  if (view === 'calendar') renderCalendar();
+  if (view === 'editor') { if (!currentPlanId) newPlan(); }
+}
+
+/* ============= Plans ============= */
+function newPlan() {
+  currentPlanId = null;
+  document.getElementById('editor-title').textContent = '新規企画書';
+  document.getElementById('editor-meta').textContent = '';
+  document.getElementById('delete-btn').style.display = 'none';
+  clearForm();
+  renderHookOptions([{a:'',b:'',c:''},{a:'',b:'',c:''},{a:'',b:'',c:''}]);
+  renderScript([
+    { sec: '0-3s', cut: 'フック', line: '', telop: '', sebgm: '', note: '' },
+    { sec: '3-8s', cut: '問題提起', line: '', telop: '', sebgm: '', note: '' },
+    { sec: '8-18s', cut: '本編①', line: '', telop: '', sebgm: '', note: '' },
+    { sec: '18-25s', cut: '本編②', line: '', telop: '', sebgm: '', note: '' },
+    { sec: '25-28s', cut: 'まとめ', line: '', telop: '', sebgm: '', note: '' },
+    { sec: '28-30s', cut: 'CTA', line: '', telop: '', sebgm: '', note: '' }
+  ]);
+  switchView('editor');
+  renderEditorTrends();
+}
+
+function clearForm() {
+  document.querySelectorAll('[data-bind]').forEach(el => { el.value = ''; });
+  document.querySelectorAll('[data-bind-check]').forEach(el => { el.checked = false; });
+  document.querySelectorAll('[data-bind-bool]').forEach(el => { el.checked = false; });
+}
+
+function readForm() {
+  const data = { id: currentPlanId || ('p-' + Date.now()), updatedAt: new Date().toISOString() };
+  if (!currentPlanId) data.createdAt = data.updatedAt;
+  document.querySelectorAll('[data-bind]').forEach(el => { data[el.dataset.bind] = el.value; });
+  // platforms checkboxes
+  data.platforms = [];
+  document.querySelectorAll('[data-bind-check="platforms"]').forEach(el => { if (el.checked) data.platforms.push(el.value); });
+  // bool
+  document.querySelectorAll('[data-bind-bool]').forEach(el => { data[el.dataset.bindBool] = el.checked; });
+  // hooks
+  data.hooks = [];
+  document.querySelectorAll('.hook-row').forEach(row => {
+    data.hooks.push({
+      a: row.querySelector('[data-h="a"]').value,
+      b: row.querySelector('[data-h="b"]').value
+    });
+  });
+  // script
+  data.script = [];
+  document.querySelectorAll('#script-body tr').forEach(tr => {
+    data.script.push({
+      sec: tr.querySelector('[data-s="sec"]').value,
+      cut: tr.querySelector('[data-s="cut"]').value,
+      line: tr.querySelector('[data-s="line"]').value,
+      telop: tr.querySelector('[data-s="telop"]').value,
+      sebgm: tr.querySelector('[data-s="sebgm"]').value,
+      note: tr.querySelector('[data-s="note"]').value
+    });
+  });
+  return data;
+}
+
+function loadForm(plan) {
+  clearForm();
+  Object.keys(plan).forEach(k => {
+    const el = document.querySelector('[data-bind="' + k + '"]');
+    if (el) el.value = plan[k] || '';
+  });
+  // platforms
+  (plan.platforms || []).forEach(p => {
+    const cb = document.querySelector('[data-bind-check="platforms"][value="' + p + '"]');
+    if (cb) cb.checked = true;
+  });
+  // bool
+  ['bgmTrending', 'bgmCommercial'].forEach(k => {
+    const el = document.querySelector('[data-bind-bool="' + k + '"]');
+    if (el) el.checked = !!plan[k];
+  });
+  // hooks
+  renderHookOptions(plan.hooks && plan.hooks.length ? plan.hooks : [{a:'',b:''},{a:'',b:''},{a:'',b:''}]);
+  // script
+  renderScript(plan.script && plan.script.length ? plan.script : [
+    { sec: '0-3s', cut: 'フック', line: '', telop: '', sebgm: '', note: '' }
+  ]);
+}
+
+function savePlan() {
+  const data = readForm();
+  if (!data.title) { toast('タイトルを入力してください'); return; }
+  const idx = store.plans.findIndex(p => p.id === data.id);
+  if (idx >= 0) store.plans[idx] = { ...store.plans[idx], ...data };
+  else store.plans.push(data);
+  currentPlanId = data.id;
+  saveStore();
+  toast('保存しました');
+  document.getElementById('editor-title').textContent = data.title || '無題';
+  document.getElementById('editor-meta').textContent = '最終更新: ' + new Date(data.updatedAt).toLocaleString('ja-JP');
+  document.getElementById('delete-btn').style.display = '';
+}
+
+function openPlan(id) {
+  const plan = store.plans.find(p => p.id === id);
+  if (!plan) return;
+  currentPlanId = id;
+  loadForm(plan);
+  document.getElementById('editor-title').textContent = plan.title || '無題';
+  document.getElementById('editor-meta').textContent = '最終更新: ' + new Date(plan.updatedAt).toLocaleString('ja-JP');
+  document.getElementById('delete-btn').style.display = '';
+  switchView('editor');
+  renderEditorTrends();
+}
+
+function filterByCategory(k) {
+  switchView('plans');
+  setTimeout(() => {
+    const sel = document.getElementById('plan-filter-category');
+    if (sel) { sel.value = k; renderPlanList(); }
+  }, 50);
+}
+
+function deleteCurrentPlan() {
+  if (!currentPlanId) return;
+  if (!confirm('この企画書を削除しますか？')) return;
+  store.plans = store.plans.filter(p => p.id !== currentPlanId);
+  saveStore();
+  toast('削除しました');
+  currentPlanId = null;
+  switchView('plans');
+}
+
+/* ============= Hook options ============= */
+function renderHookOptions(hooks) {
+  const wrap = document.getElementById('hook-options');
+  wrap.innerHTML = '';
+  ['A', 'B', 'C'].forEach((label, i) => {
+    const h = hooks[i] || { a: '', b: '' };
+    const row = document.createElement('div');
+    row.className = 'hook-row';
+    row.innerHTML = `
+      <div class="label-cell">${label}</div>
+      <textarea data-h="a" placeholder="冒頭セリフ／テロップ">${escapeHtml(h.a || '')}</textarea>
+      <textarea data-h="b" placeholder="ビジュアル">${escapeHtml(h.b || '')}</textarea>
+      <div></div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+/* ============= Script ============= */
+function renderScript(rows) {
+  const tbody = document.getElementById('script-body');
+  tbody.innerHTML = '';
+  rows.forEach((r, i) => addScriptRow(r, i + 1));
+}
+function addScriptRow(row, num) {
+  const tbody = document.getElementById('script-body');
+  row = row || { sec: '', cut: '', line: '', telop: '', sebgm: '', note: '' };
+  const idx = num || (tbody.children.length + 1);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="script-row-num">${idx}</td>
+    <td><input type="text" data-s="sec" value="${escapeHtml(row.sec)}" style="width:60px"></td>
+    <td><input type="text" data-s="cut" value="${escapeHtml(row.cut)}" style="width:80px"></td>
+    <td><textarea data-s="line" rows="2">${escapeHtml(row.line)}</textarea></td>
+    <td><textarea data-s="telop" rows="2">${escapeHtml(row.telop)}</textarea></td>
+    <td><input type="text" data-s="sebgm" value="${escapeHtml(row.sebgm)}" style="width:90px"></td>
+    <td><input type="text" data-s="note" value="${escapeHtml(row.note)}" style="width:100px"></td>
+    <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();renumberScript()">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+function renumberScript() {
+  document.querySelectorAll('#script-body tr').forEach((tr, i) => {
+    tr.querySelector('.script-row-num').textContent = i + 1;
+  });
+}
+
+/* ============= Plan list ============= */
+const CATEGORY_DEFS = [
+  { key: 'dance',         label: 'ダンス',           emoji: '💃' },
+  { key: 'challenge',     label: '企画・チャレンジ',  emoji: '🎯' },
+  { key: 'recruit',       label: '採用・リクルート',  emoji: '👔' },
+  { key: 'news',          label: 'ニュース・解説',    emoji: '📰' },
+  { key: 'entertainment', label: 'エンタメ・コメディ', emoji: '🎭' },
+  { key: 'howto',         label: 'ノウハウ・Howto',   emoji: '💡' },
+  { key: 'vlog',          label: 'Vlog・ルーティン',  emoji: '📹' },
+  { key: 'product',       label: '商品紹介・レビュー', emoji: '🛍️' },
+  { key: 'story',         label: 'ストーリー仕立て',  emoji: '📖' },
+  { key: 'interview',     label: 'インタビュー・対談', emoji: '🎙️' },
+  { key: 'other',         label: 'その他',           emoji: '📌' }
+];
+function categoryLabel(k) {
+  const c = CATEGORY_DEFS.find(c => c.key === k);
+  return c ? `${c.emoji} ${c.label}` : '未分類';
+}
+function categoryTag(k) {
+  if (!k) return '<span class="tag cat-other">未分類</span>';
+  return `<span class="tag cat-${k}">${categoryLabel(k)}</span>`;
+}
+
+function renderPlanList() {
+  const q = (document.getElementById('plan-search').value || '').toLowerCase();
+  const sf = document.getElementById('plan-filter-status').value;
+  const cf = document.getElementById('plan-filter-category').value;
+  const mode = document.getElementById('plan-view-mode').value;
+  const list = document.getElementById('plan-list');
+  const filtered = store.plans
+    .filter(p => !sf || p.status === sf)
+    .filter(p => {
+      if (!cf) return true;
+      if (cf === '__none__') return !p.category;
+      return p.category === cf;
+    })
+    .filter(p => !q || (p.title || '').toLowerCase().includes(q) || (p.client || '').toLowerCase().includes(q))
+    .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">該当する企画書がありません。<br><button class="btn btn-primary" style="margin-top:12px" onclick="newPlan()">＋ 新規作成</button></div>';
+    return;
+  }
+  if (mode === 'group') {
+    // Group by category
+    const groups = {};
+    filtered.forEach(p => {
+      const k = p.category || '__none__';
+      (groups[k] = groups[k] || []).push(p);
+    });
+    const order = [...CATEGORY_DEFS.map(c => c.key), '__none__'];
+    let html = '';
+    order.forEach(k => {
+      const items = groups[k];
+      if (!items || !items.length) return;
+      const heading = k === '__none__' ? '未分類' : categoryLabel(k);
+      html += `<h3 style="font-size:13px;margin:18px 0 8px;color:#444">${heading} <span style="color:var(--muted);font-weight:400">（${items.length}本）</span></h3>`;
+      html += items.map(p => planListItemHTML(p)).join('');
+    });
+    list.innerHTML = html;
+  } else {
+    list.innerHTML = filtered.map(p => planListItemHTML(p)).join('');
+  }
+}
+
+function planListItemHTML(p) {
+  return `
+    <div class="plan-list-item" onclick="openPlan('${p.id}')">
+      <div>
+        <div class="title">${escapeHtml(p.title || '無題')}</div>
+        <div class="meta">${escapeHtml(p.client || '')} ${p.postDate ? '・投稿予定 ' + p.postDate : ''}</div>
+      </div>
+      <div>${categoryTag(p.category)}</div>
+      <div>${(p.platforms || []).map(pl => `<span class="tag ${pl}">${pl}</span>`).join('')}</div>
+      <div><span class="tag ${p.status || 'draft'}">${statusLabel(p.status)}</span></div>
+      <div style="color:var(--muted);font-size:11px">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('ja-JP') : ''}</div>
+    </div>`;
+}
+
+function statusLabel(s) {
+  return { draft: 'ドラフト', review: '確認中', approved: '承認済', posted: '投稿済' }[s] || 'ドラフト';
+}
+
+/* ============= Dashboard ============= */
+function renderDashboard() {
+  const today = new Date();
+  document.getElementById('today-date').textContent = today.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  document.getElementById('stat-total').textContent = store.plans.length;
+  document.getElementById('stat-draft').textContent = store.plans.filter(p => p.status === 'draft' || !p.status).length;
+  document.getElementById('stat-approved').textContent = store.plans.filter(p => p.status === 'approved').length;
+  document.getElementById('stat-posted').textContent = store.plans.filter(p => p.status === 'posted').length;
+
+  // Category breakdown
+  const cb = document.getElementById('category-breakdown');
+  const counts = {};
+  store.plans.forEach(p => {
+    const k = p.category || '__none__';
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  const cats = [...CATEGORY_DEFS, { key: '__none__', label: '未分類', emoji: '・' }];
+  cb.innerHTML = cats.map(c => {
+    const n = counts[c.key] || 0;
+    const dim = n === 0 ? 'opacity:0.4;' : '';
+    return `<div onclick="filterByCategory('${c.key}')" style="cursor:pointer;${dim}padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px">${c.emoji} ${c.label}</span>
+      <strong style="font-size:18px;color:var(--accent)">${n}</strong>
+    </div>`;
+  }).join('');
+
+  const recent = [...store.plans].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 5);
+  const rp = document.getElementById('recent-plans');
+  if (!recent.length) rp.innerHTML = '<div class="empty" style="padding:20px">まだ企画書がありません</div>';
+  else rp.innerHTML = recent.map(p => planListItemHTML(p)).join('');
+
+  renderKPIAggregation();
+
+  const snap = document.getElementById('dashboard-snapshot');
+  if (!TREND_SNAPSHOT.updatedAt) {
+    snap.innerHTML = '<div class="snapshot-empty">まだスナップショットが取得されていません。Claudeに「今月のトレンドを更新して」と依頼してください。</div>';
+  } else {
+    snap.innerHTML = renderSnapshotHTML();
+  }
+}
+
+/* ============= Trends ============= */
+function renderTrends() {
+  // News-style article feed
+  renderTrendFeed();
+
+  // links
+  const wrap = document.getElementById('trend-links');
+  wrap.innerHTML = TREND_LINKS.map(t => `
+    <a href="${t.url}" target="_blank" rel="noopener" class="trend-link">
+      <div class="name">${escapeHtml(t.name)}</div>
+      <div class="desc">${escapeHtml(t.desc)}</div>
+      <div class="platform">${escapeHtml(t.platform)}</div>
+    </a>
+  `).join('');
+
+  // log
+  if (!document.getElementById('log-date').value) {
+    document.getElementById('log-date').value = new Date().toISOString().slice(0, 10);
+  }
+  renderTrendLog();
+}
+
+function renderSnapshotHTML() {
+  // Dashboard 用：コンパクトな箱形式
+  const dt = new Date(TREND_SNAPSHOT.updatedAt).toLocaleDateString('ja-JP');
+  let html = `<div class="snapshot-box"><div class="updated">最終更新: ${dt}</div>`;
+  Object.entries(TREND_SNAPSHOT.byPlatform).forEach(([platform, sections]) => {
+    html += `<h3 style="margin:12px 0 6px;font-size:14px">${escapeHtml(platform)}</h3>`;
+    Object.entries(sections).forEach(([cat, items]) => {
+      html += `<div style="margin-bottom:8px"><strong style="font-size:12px;color:#555">${escapeHtml(cat)}</strong><ul style="margin:4px 0 0 18px;padding:0;font-size:13px">`;
+      items.forEach(it => {
+        html += `<li>${escapeHtml(it.name)}${it.note ? ' — <span style="color:var(--muted)">' + escapeHtml(it.note) + '</span>' : ''}</li>`;
+      });
+      html += `</ul></div>`;
+    });
+  });
+  html += '</div>';
+  return html;
+}
+
+/* ============= News-style trend feed ============= */
+function flattenTrends() {
+  const out = [];
+  Object.entries(TREND_SNAPSHOT.byPlatform).forEach(([platform, sections]) => {
+    Object.entries(sections).forEach(([sec, items]) => {
+      items.forEach((it, i) => {
+        out.push({
+          ...it,
+          platform,
+          section: sec,
+          tid: `${platform}::${sec}::${i}`
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function renderTrendFeed() {
+  const wrap = document.getElementById('trend-news-feed');
+  if (!wrap) return;
+
+  // ヘッダー日付
+  const dateEl = document.getElementById('news-date');
+  if (dateEl) {
+    const d = new Date();
+    const wd = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'][d.getDay()];
+    dateEl.innerHTML = `${wd} · ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}` +
+      (TREND_SNAPSHOT.updatedAt ? `<span class="updated-badge">最終更新 ${TREND_SNAPSHOT.updatedAt}</span>` : '');
+  }
+
+  if (!TREND_SNAPSHOT.updatedAt) {
+    wrap.innerHTML = '<div class="empty" style="padding:40px">まだ記事がありません。Claudeに「今月のトレンドを更新して」と頼むと、ここに記事が配信されます。</div>';
+    return;
+  }
+
+  const flat = flattenTrends();
+
+  // TOP STORY：cカテゴリが3つ以上ある or ハッシュタグ系で目を引くもの優先
+  const topStory = flat.find(t => (t.c && t.c.length >= 3)) || flat[0];
+
+  let html = '';
+
+  // TOP STORY
+  if (topStory) {
+    html += `
+      <section class="news-section">
+        <div class="news-section-head">
+          <span class="label">🌟 TOP STORY</span>
+          <span class="count">本日の注目トレンド</span>
+        </div>
+        ${articleCardHTML(topStory, true)}
+      </section>`;
+  }
+
+  // プラットフォーム別セクション
+  Object.keys(TREND_SNAPSHOT.byPlatform).forEach(platform => {
+    const platformItems = flat.filter(t => t.platform === platform && (!topStory || t.tid !== topStory.tid));
+    if (!platformItems.length) return;
+    const icon = platform.includes('TikTok') ? '🎵' : platform.includes('Reels') ? '📷' : platform.includes('Z世代') ? '🔥' : '📰';
+    html += `
+      <section class="news-section">
+        <div class="news-section-head">
+          <span class="label">${icon} ${escapeHtml(platform)}</span>
+          <span class="count">${platformItems.length} ARTICLES</span>
+        </div>`;
+    const bySec = {};
+    platformItems.forEach(t => { (bySec[t.section] = bySec[t.section] || []).push(t); });
+    Object.entries(bySec).forEach(([sec, items]) => {
+      html += `<div class="news-subsection">${escapeHtml(sec)}</div>`;
+      html += '<div class="news-grid">';
+      items.forEach(it => { html += articleCardHTML(it, false); });
+      html += '</div>';
+    });
+    html += '</section>';
+  });
+
+  wrap.innerHTML = html;
+}
+
+function articleCardHTML(item, featured) {
+  const cats = (item.c || []).map(k => categoryTag(k)).join(' ');
+  const pubDate = TREND_SNAPSHOT.updatedAt || '';
+  return `
+    <article class="article-card${featured ? ' featured' : ''}">
+      <div class="meta">
+        <span class="section-name">${escapeHtml(item.section)}</span>
+        <span>${escapeHtml(pubDate)}</span>
+      </div>
+      <h3 class="headline">${escapeHtml(item.name)}</h3>
+      ${item.note ? `<p class="lead">${escapeHtml(item.note)}</p>` : ''}
+      ${cats ? `<div class="cats">${cats}</div>` : ''}
+      <div class="actions">
+        <button class="btn-draft" onclick="draftFromTrend('${escapeAttr(item.tid)}')">
+          📝 この企画で企画書ドラフトを作成
+        </button>
+      </div>
+    </article>`;
+}
+
+/* ============= Draft generation from trend ============= */
+function draftFromTrend(tid) {
+  const flat = flattenTrends();
+  const t = flat.find(x => x.tid === tid);
+  if (!t) { toast('トレンドが見つかりません'); return; }
+
+  // プラットフォーム推定
+  const platforms = [];
+  if (t.platform.includes('TikTok')) platforms.push('tiktok');
+  if (t.platform.includes('Reels')) platforms.push('reels');
+  if (t.platform.includes('YouTube')) platforms.push('shorts');
+  if (!platforms.length) platforms.push('tiktok', 'reels');
+
+  // カテゴリ推定（c[0] を採用）
+  const category = (t.c && t.c[0]) || '';
+
+  // セクションタイプ判定
+  const isSound = /楽曲|音源/.test(t.section);
+  const isHashtag = /ハッシュタグ/.test(t.section);
+  const isFormat = /フォーマット|スペック|テクニック|アルゴリズム/.test(t.section);
+  const isMono = /モノ|フード|ファッション|キャラクター/.test(t.section);
+
+  // タイトル生成
+  let title;
+  if (isSound) title = `【新企画】${t.name} を使った縦動画`;
+  else if (isHashtag) title = `【新企画】${t.name} 起点の企画`;
+  else if (isFormat) title = `【新企画】${t.name} を取り入れた動画`;
+  else if (isMono) title = `【新企画】${t.name} を取り上げる動画`;
+  else title = `【新企画】${t.name}`;
+
+  // フック雛形
+  const hookA = isSound
+    ? { a: `「${t.name}」に合わせて、3秒で見せます`, b: '冒頭：商品/モチーフのアップカット' }
+    : isHashtag
+    ? { a: `${t.name} やってみた`, b: 'チャレンジ開始の表情' }
+    : { a: `${t.name}って知ってる？`, b: 'モノ/シーンのクローズアップ' };
+
+  const newId = 'p-' + Date.now();
+  const newPlan = {
+    id: newId,
+    title,
+    client: '',
+    director: '',
+    creator: '',
+    category,
+    platforms,
+    status: 'draft',
+    concept: `${t.name}${t.note ? ' — ' + t.note : ''}（トレンドソース：${t.platform} / ${t.section}）`,
+    benefit: '',
+    bgm: isSound ? t.name : '',
+    bgmTrending: isSound,
+    bgmCommercial: false,
+    hashtagBig: isHashtag ? t.name : '',
+    hashtagMid: '',
+    hashtagSmall: '',
+    hashtagBrand: '',
+    totalSec: '30',
+    targetAge: '',
+    persona: '',
+    hooks: [hookA, { a: '', b: '' }, { a: '', b: '' }],
+    script: [
+      { sec: '0-3s', cut: 'フック', line: hookA.a, telop: hookA.a, sebgm: isSound ? t.name : '', note: '' },
+      { sec: '3-8s', cut: '問題提起／共感', line: '', telop: '', sebgm: '', note: '' },
+      { sec: '8-18s', cut: '本編①', line: '', telop: '', sebgm: '', note: '' },
+      { sec: '18-25s', cut: '本編②', line: '', telop: '', sebgm: '', note: '' },
+      { sec: '25-28s', cut: 'まとめ', line: '', telop: '', sebgm: '', note: '' },
+      { sec: '28-30s', cut: 'CTA', line: '', telop: '', sebgm: '', note: '' }
+    ],
+    hookDecision: 'A案を起点に検討',
+    refs: `出典トレンド: ${t.platform} / ${t.section} / ${t.name}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  store.plans.push(newPlan);
+  saveStore();
+  toast(`ドラフトを作成しました: ${title}`);
+  setTimeout(() => openPlan(newId), 300);
+}
+
+function addTrendLog() {
+  const item = {
+    id: 't-' + Date.now(),
+    date: document.getElementById('log-date').value,
+    platform: document.getElementById('log-platform').value,
+    type: document.getElementById('log-type').value,
+    name: document.getElementById('log-name').value,
+    url: document.getElementById('log-url').value,
+    notes: document.getElementById('log-notes').value
+  };
+  if (!item.name) { toast('名称を入力してください'); return; }
+  store.trendLog.push(item);
+  saveStore();
+  document.getElementById('log-name').value = '';
+  document.getElementById('log-url').value = '';
+  document.getElementById('log-notes').value = '';
+  toast('追加しました');
+  renderTrendLog();
+}
+
+function renderTrendLog() {
+  const list = document.getElementById('trend-log-list');
+  const sorted = [...store.trendLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (!sorted.length) {
+    list.innerHTML = '<div class="empty" style="padding:20px;font-size:12px">まだログがありません</div>';
+    return;
+  }
+  list.innerHTML = `
+    <table>
+      <thead><tr><th>日付</th><th>PF</th><th>種類</th><th>名称</th><th>メモ</th><th></th></tr></thead>
+      <tbody>
+      ${sorted.map(l => `
+        <tr>
+          <td style="white-space:nowrap">${escapeHtml(l.date)}</td>
+          <td><span class="tag ${l.platform}">${escapeHtml(l.platform)}</span></td>
+          <td style="font-size:11px">${escapeHtml(typeLabel(l.type))}</td>
+          <td>${l.url ? '<a href="' + escapeAttr(l.url) + '" target="_blank">' + escapeHtml(l.name) + '</a>' : escapeHtml(l.name)}</td>
+          <td style="font-size:12px;color:#555">${escapeHtml(l.notes || '')}</td>
+          <td><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteTrendLog('${l.id}')">×</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function typeLabel(t) {
+  return { sound: '音源', hashtag: 'ハッシュタグ', format: 'フォーマット', topic: '話題', creator: 'クリエイター', other: 'その他' }[t] || t;
+}
+function deleteTrendLog(id) {
+  if (!confirm('このログを削除しますか？')) return;
+  store.trendLog = store.trendLog.filter(l => l.id !== id);
+  saveStore();
+  renderTrendLog();
+}
+
+/* ============= Markdown export ============= */
+function exportMarkdown() {
+  const d = readForm();
+  let md = `# ${d.title || '（タイトル未入力）'}\n\n`;
+  md += `> ${d.client || ''} ／ 担当：${d.director || ''}\n\n`;
+  md += `## 基本情報\n\n`;
+  md += `| 項目 | 内容 |\n|---|---|\n`;
+  md += `| クライアント | ${d.client || ''} |\n`;
+  md += `| 担当ディレクター | ${d.director || ''} |\n`;
+  md += `| 担当クリエイター | ${d.creator || ''} |\n`;
+  md += `| 撮影予定日 | ${d.shootDate || ''} |\n`;
+  md += `| 投稿予定日時 | ${d.postDate || ''} |\n`;
+  md += `| プラットフォーム | ${(d.platforms || []).join(' / ')} |\n`;
+  md += `| コンセプトカテゴリ | ${categoryLabel(d.category)} |\n`;
+  md += `| ステータス | ${statusLabel(d.status)} |\n\n`;
+
+  md += `## 1. 目的・KPI\n\n${d.goal || ''}\n\n`;
+  md += `| 指標 | 目標 |\n|---|---|\n`;
+  md += `| 再生数 | ${d.kpiViews || ''} |\n`;
+  md += `| 視聴維持率 | ${d.kpiRetention || ''} |\n`;
+  md += `| 保存 | ${d.kpiSaves || ''} |\n`;
+  md += `| シェア | ${d.kpiShares || ''} |\n`;
+  md += `| プロフィール遷移 | ${d.kpiProfile || ''} |\n`;
+  md += `| フォロー転換 | ${d.kpiFollow || ''} |\n\n`;
+  if (d.role) md += `**役割**：${d.role}\n\n`;
+
+  md += `## 2. ターゲット\n\n`;
+  md += `- 性別・年代：${d.targetAge || ''}\n- 居住地・職業：${d.targetLife || ''}\n- 悩み：${d.targetPain || ''}\n- 視聴傾向：${d.targetWatching || ''}\n- インサイト：${d.targetInsight || ''}\n\n`;
+  if (d.persona) md += `**ペルソナ**：${d.persona}\n\n`;
+
+  md += `## 3. コンセプト\n\n**一行**：${d.concept || ''}\n\n**訴求軸**：${d.benefit || ''}\n\n`;
+
+  md += `## 4. フック（最初の3秒）\n\n`;
+  md += `| 案 | セリフ／テロップ | ビジュアル |\n|---|---|---|\n`;
+  ['A','B','C'].forEach((l, i) => {
+    const h = d.hooks[i] || {};
+    md += `| ${l} | ${(h.a || '').replace(/\n/g,'<br>')} | ${(h.b || '').replace(/\n/g,'<br>')} |\n`;
+  });
+  md += `\n**採用案と理由**：${d.hookDecision || ''}\n\n`;
+
+  md += `## 5. 構成・台本\n\n`;
+  md += `| # | 秒 | カット | セリフ | テロップ | SE/BGM | 備考 |\n|---|---|---|---|---|---|---|\n`;
+  (d.script || []).forEach((s, i) => {
+    md += `| ${i+1} | ${s.sec} | ${s.cut} | ${(s.line || '').replace(/\n/g,'<br>')} | ${(s.telop || '').replace(/\n/g,'<br>')} | ${s.sebgm} | ${s.note} |\n`;
+  });
+  md += `\n**総尺**：${d.totalSec || ''} 秒\n\n`;
+
+  md += `## 6. ビジュアル要件\n\n`;
+  md += `- 場所：${d.location || ''}\n- 出演者：${d.cast || ''}\n- 衣装：${d.wardrobe || ''}\n- 小道具：${d.props || ''}\n- 機材：${d.gear || ''}\n- アングル：${d.angle || ''}\n- トーン：${d.tone || ''}\n\n`;
+
+  md += `## 7. 音源\n\n- 使用音源：${d.bgm || ''}\n- URL：${d.bgmUrl || ''}\n- トレンド音源：${d.bgmTrending ? 'はい' : 'いいえ'}\n- 商用利用確認：${d.bgmCommercial ? '済' : '未'}\n\n`;
+
+  md += `## 8. テロップ・キャプション\n\n**テロップ方針**：${d.telop || ''}\n\n**キャプション**：\n\n\`\`\`\n${d.caption || ''}\n\`\`\`\n\n`;
+  md += `**ハッシュタグ**\n- ビッグ：${d.hashtagBig || ''}\n- ミドル：${d.hashtagMid || ''}\n- スモール：${d.hashtagSmall || ''}\n- ブランド：${d.hashtagBrand || ''}\n\n`;
+
+  md += `## 9. CTA・リスク\n\n**CTA**：${d.ctaText || ''}\n\n**リスク**：${d.risks || ''}\n\n`;
+  md += `## 10. 承認・参考\n\n${d.approval || ''}\n\n参考：\n${d.refs || ''}\n\n`;
+  md += `## 11. 公開後ふりかえり\n\n- 再生数：${d.actualViews || ''}\n- 維持率：${d.actualRetention || ''}\n- 保存：${d.actualSaves || ''}\n\n**学び**：${d.learnings || ''}\n`;
+
+  document.getElementById('export-text').textContent = md;
+  window._exportMd = md;
+  window._exportFilename = (d.title || 'kikakusho') + '.md';
+  document.getElementById('modal-bg').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('show'); }
+function copyExport() {
+  navigator.clipboard.writeText(window._exportMd || '').then(() => toast('コピーしました'));
+}
+function downloadMd() {
+  const blob = new Blob([window._exportMd], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = window._exportFilename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ============= Settings ============= */
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'sns-kikaku-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.plans || !Array.isArray(data.plans)) throw new Error('不正');
+      if (!confirm('既存のデータを上書きします。よろしいですか？')) return;
+      store = data;
+      saveStore();
+      toast('読み込みました');
+      renderDashboard();
+    } catch (err) { alert('JSONの読み込みに失敗: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+function reSeedSamples() {
+  const added = seedSamples(false);
+  toast(added > 0 ? `${added}件のサンプルを投入しました` : 'サンプルは既に存在しています');
+  renderDashboard();
+}
+function removeSamples() {
+  if (!confirm('サンプル案件（id: p-sample-*）をすべて削除します。よろしいですか？')) return;
+  const before = store.plans.length;
+  store.plans = store.plans.filter(p => !p.id.startsWith('p-sample-'));
+  const removed = before - store.plans.length;
+  saveStore();
+  toast(`${removed}件のサンプルを削除しました`);
+  renderDashboard();
+}
+
+function clearAll() {
+  if (!confirm('本当に全データを削除しますか？')) return;
+  if (!confirm('元に戻せません。本当によろしいですか？')) return;
+  store = { plans: [], trendLog: [], snapshot: null };
+  saveStore();
+  toast('削除しました');
+  renderDashboard();
+}
+
+/* ============= Util ============= */
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeAttr(s) { return escapeHtml(s); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* ============= Editor trend suggestions ============= */
+function getTrendsForCategory(catKey) {
+  if (!catKey) return [];
+  const out = [];
+  Object.entries(TREND_SNAPSHOT.byPlatform).forEach(([platform, sections]) => {
+    Object.entries(sections).forEach(([cat, items]) => {
+      items.forEach(it => {
+        if (it.c && it.c.includes(catKey)) {
+          out.push({ ...it, platform, category: cat });
+        }
+      });
+    });
+  });
+  return out;
+}
+
+function renderEditorTrends() {
+  const sel = document.querySelector('[data-bind="category"]');
+  if (!sel) return;
+  const cat = sel.value;
+  const card = document.getElementById('editor-trend-card');
+  const content = document.getElementById('editor-trend-content');
+  if (!cat) { card.style.display = 'none'; return; }
+  const items = getTrendsForCategory(cat);
+  if (!items.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  // group by platform
+  const byPF = {};
+  items.forEach(it => { (byPF[it.platform] = byPF[it.platform] || []).push(it); });
+  let html = `<div style="margin-bottom:8px;color:var(--muted);font-size:12px">「${categoryLabel(cat)}」と相性の良いトレンドを抽出 (${items.length}件)</div>`;
+  Object.entries(byPF).forEach(([pf, list]) => {
+    html += `<div style="margin-top:8px"><strong style="font-size:12px;color:#444">${escapeHtml(pf)}</strong><ul style="margin:4px 0 0 18px;padding:0">`;
+    list.forEach(it => {
+      html += `<li style="margin:2px 0"><strong>${escapeHtml(it.name)}</strong>${it.note ? ' — <span style="color:#555">' + escapeHtml(it.note) + '</span>' : ''}</li>`;
+    });
+    html += '</ul></div>';
+  });
+  content.innerHTML = html;
+}
+
+/* ============= KPI Aggregation ============= */
+function parseMetric(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const cleaned = String(v).replace(/[,，％%\s人件本回回数]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+function formatMetric(n, isPct) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  if (isPct) return n.toFixed(1) + '%';
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  if (n >= 1000) return n.toFixed(0);
+  return n.toFixed(1);
+}
+function renderKPIAggregation() {
+  const wrap = document.getElementById('kpi-aggregation');
+  const metrics = [
+    { key: 'actualViews', label: '再生数', pct: false },
+    { key: 'actualRetention', label: '維持率', pct: true },
+    { key: 'actualSaves', label: '保存', pct: false },
+    { key: 'actualShares', label: 'シェア', pct: false },
+    { key: 'actualProfile', label: 'プロフ遷移', pct: true },
+    { key: 'actualFollow', label: 'フォロー転換', pct: true }
+  ];
+  const posted = store.plans.filter(p => p.status === 'posted');
+  if (!posted.length) {
+    wrap.innerHTML = '<div class="empty" style="padding:24px;font-size:12px">投稿済の企画書がまだありません。ステータスを「投稿済」にして実績を入力すると、ここに相場感が表示されます。</div>';
+    return;
+  }
+  let html = '<table class="kpi-table"><thead><tr><th>カテゴリ</th><th style="text-align:center">本数</th>';
+  metrics.forEach(m => { html += `<th style="text-align:right">${m.label}</th>`; });
+  html += '</tr></thead><tbody>';
+  const cats = [...CATEGORY_DEFS, { key: '__none__', label: '未分類', emoji: '・' }];
+  let hasAny = false;
+  cats.forEach(c => {
+    const plans = posted.filter(p => (c.key === '__none__' ? !p.category : p.category === c.key));
+    if (!plans.length) return;
+    hasAny = true;
+    html += `<tr><td>${c.emoji} ${c.label}</td><td class="num" style="text-align:center">${plans.length}</td>`;
+    metrics.forEach(m => {
+      const vals = plans.map(p => parseMetric(p[m.key])).filter(v => v !== null);
+      if (vals.length) {
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        html += `<td class="num">${formatMetric(avg, m.pct)}</td>`;
+      } else {
+        html += '<td class="num" style="color:#bbb">—</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  // grand total row
+  html += `<tr style="border-top:2px solid var(--border);font-weight:700"><td>全体平均</td><td class="num" style="text-align:center">${posted.length}</td>`;
+  metrics.forEach(m => {
+    const vals = posted.map(p => parseMetric(p[m.key])).filter(v => v !== null);
+    if (vals.length) {
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      html += `<td class="num">${formatMetric(avg, m.pct)}</td>`;
+    } else {
+      html += '<td class="num" style="color:#bbb">—</td>';
+    }
+  });
+  html += '</tr>';
+  html += '</tbody></table>';
+  if (!hasAny) html = '<div class="empty" style="padding:24px;font-size:12px">投稿済の企画書にカテゴリが設定されていません</div>';
+  wrap.innerHTML = html;
+}
+
+/* ============= Calendar ============= */
+let calCursor = new Date(); // 表示中の年月（1日固定）
+calCursor.setDate(1);
+
+function calMove(delta) {
+  calCursor.setMonth(calCursor.getMonth() + delta);
+  renderCalendar();
+}
+function calToday() {
+  calCursor = new Date();
+  calCursor.setDate(1);
+  renderCalendar();
+}
+function renderCalendar() {
+  const year = calCursor.getFullYear();
+  const month = calCursor.getMonth();
+  document.getElementById('cal-title').textContent = `${year}年 ${month + 1}月`;
+
+  const grid = document.getElementById('cal-grid');
+  let html = '';
+  const heads = ['日', '月', '火', '水', '木', '金', '土'];
+  heads.forEach((d, i) => {
+    const cls = i === 0 ? 'sun' : (i === 6 ? 'sat' : '');
+    html += `<div class="cal-head ${cls}">${d}</div>`;
+  });
+
+  // index plans by date
+  const plansByDate = {};
+  store.plans.forEach(p => {
+    if (!p.postDate) return;
+    const dt = p.postDate.slice(0, 10);
+    (plansByDate[dt] = plansByDate[dt] || []).push(p);
+  });
+
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevDays = new Date(year, month, 0).getDate();
+  const today = new Date();
+  const todayStr = toLocalISO(today);
+
+  // 6 weeks × 7 days = 42 cells
+  for (let i = 0; i < 42; i++) {
+    const dayNum = i - firstDay + 1;
+    let cellDate, isOther = false, dispDay;
+    if (dayNum < 1) {
+      isOther = true;
+      dispDay = prevDays + dayNum;
+      cellDate = new Date(year, month - 1, dispDay);
+    } else if (dayNum > daysInMonth) {
+      isOther = true;
+      dispDay = dayNum - daysInMonth;
+      cellDate = new Date(year, month + 1, dispDay);
+    } else {
+      dispDay = dayNum;
+      cellDate = new Date(year, month, dispDay);
+    }
+    const iso = toLocalISO(cellDate);
+    const wday = cellDate.getDay();
+    const cls = [
+      'cal-cell',
+      isOther ? 'other-month' : '',
+      iso === todayStr ? 'today' : '',
+      wday === 0 ? 'sun' : '',
+      wday === 6 ? 'sat' : ''
+    ].filter(Boolean).join(' ');
+
+    let chips = '';
+    if (plansByDate[iso]) {
+      plansByDate[iso].forEach(p => {
+        const catKey = p.category || 'other';
+        chips += `<span class="cal-chip cat-${catKey}" style="background:${chipColor(catKey)}" onclick="event.stopPropagation();openPlan('${p.id}')" title="${escapeAttr(p.title || '')}">${escapeHtml(p.title || '無題')}</span>`;
+      });
+    }
+    html += `<div class="${cls}"><div class="date">${dispDay}</div>${chips}</div>`;
+  }
+  grid.innerHTML = html;
+
+  // list under calendar
+  const listWrap = document.getElementById('cal-list');
+  const monthPlans = store.plans.filter(p => {
+    if (!p.postDate) return false;
+    const d = new Date(p.postDate);
+    return d.getFullYear() === year && d.getMonth() === month;
+  }).sort((a, b) => a.postDate.localeCompare(b.postDate));
+  if (!monthPlans.length) {
+    listWrap.innerHTML = '<div class="empty" style="padding:20px;font-size:12px">この月の投稿予定はありません</div>';
+  } else {
+    listWrap.innerHTML = monthPlans.map(p => planListItemHTML(p)).join('');
+  }
+}
+function toLocalISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function chipColor(catKey) {
+  const map = {
+    dance: '#c2185b', challenge: '#e65100', recruit: '#00695c',
+    news: '#0277bd', entertainment: '#c17e00', howto: '#2e7d32',
+    vlog: '#6a1b9a', product: '#c62828', story: '#4527a0',
+    interview: '#283593', other: '#455a64'
+  };
+  return map[catKey] || '#455a64';
+}
+
+/* ============= Wire up category onchange ============= */
+document.addEventListener('change', e => {
+  if (e.target && e.target.dataset && e.target.dataset.bind === 'category') {
+    renderEditorTrends();
+  }
+});
+
+/* ============= Init ============= */
+renderDashboard();
+</script>
+</body>
+</html>
