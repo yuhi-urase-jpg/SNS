@@ -30,7 +30,7 @@ O_WAVE0 = O_TALK0 + O_TALK_LEN + 0.1   # バイバイ
 O_WAVE = 1.4
 O_SPIN0 = O_WAVE0 + O_WAVE      # 回転して粒子に
 O_SPIN = 1.1
-O_DIS0 = O_SPIN0 + 0.45         # 粒子化スタート
+O_DIS0 = O_SPIN0 + 0.55         # 粒子化スタート
 O_DIS = 1.6
 T_OUTRO = O_DIS0 + O_DIS + 0.4
 T_FADE = 0.5
@@ -60,7 +60,7 @@ def text_bold(draw, xy, text, size, fill, anchor="la", stroke=None):
 
 
 # ---------- assets ----------
-CROP = (500, 15, 1140, 935)  # 全ポーズ共通の切り抜き枠（ポーズを切り替えても位置がずれない）
+CROP = (470, 15, 1170, 935)  # 全ポーズ共通の切り抜き枠（ポーズを切り替えても位置がずれない）
 
 
 def load_chara():
@@ -74,26 +74,27 @@ def load_chara():
     return out
 
 
-def make_wave_parts(im):
-    """人差し指ポーズから「手」だけを切り出す（バイバイ用）"""
-    a = np.array(im)
+def make_wave_parts(C):
+    """バイバイ画像から「手（袖口まで）」を切り出し、手首を支点に振れるようにする"""
+    ox, oy = CROP[0], CROP[1]
+    a = np.array(C["wave_smirk"])
     alpha = a[..., 3] > 100
-    bx0, by0, bx1, by1 = 40, 425, 190, 577   # 切り抜き座標系での手の範囲
-    box = np.zeros_like(alpha); box[by0:by1, bx0:bx1] = True
+    box = np.zeros_like(alpha); box[420 - oy:552 - oy, 500 - ox:652 - ox] = True
     region = alpha & box
-    m = np.zeros_like(alpha); m[505, 100] = True
-    for _ in range(400):
-        n = m.copy()
-        n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]
+    m = np.zeros_like(alpha); m[480 - oy, 575 - ox] = True
+    for _ in range(600):
+        n = m.copy(); n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]
         n &= region
         if (n == m).all(): break
         m = n
-    for _ in range(3):  # 縁のアンチエイリアス分を含める
+    for _ in range(3):
         n = m.copy(); n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]
         m = n & box
     hand = a.copy(); hand[..., 3] = np.where(m, a[..., 3], 0)
-    body = a.copy(); body[..., 3] = np.where(m, 0, a[..., 3])
-    return Image.fromarray(body), Image.fromarray(hand), (105, 577)
+    bodies = {}
+    for k in ("wave_smirk", "wave_closed", "wave_open", "wave_laugh"):
+        b = np.array(C[k]); b[..., 3] = np.where(m, 0, b[..., 3]); bodies[k] = Image.fromarray(b)
+    return bodies, Image.fromarray(hand), (602 - ox, 550 - oy)
 
 
 class Background:
@@ -117,6 +118,15 @@ class Background:
             d.ellipse((W / 2 - rr, H / 2 - rr, W / 2 + rr, H / 2 + rr), outline=(150, 200, 255, a), width=2)
         self.base.alpha_composite(g)
         self.nebula = self._make_nebula(rng)
+        # 星雲の中の細かいチリ（フル解像度）
+        n = 14000
+        dx = rng.normal(0, 0.42, n) * W / 2 * 0.66; dy = rng.normal(0, 0.42, n) * H / 2 * 0.98
+        px = np.clip(W / 2 + dx, 0, W - 1).astype(int); py = np.clip(H / 2 + dy, 0, H - 1).astype(int)
+        dust = np.zeros((H, W, 4), np.uint8)
+        v = rng.uniform(0, 1, n) ** 2
+        dust[py, px, 0] = (150 + 100 * v).astype(np.uint8); dust[py, px, 1] = (195 + 60 * v).astype(np.uint8)
+        dust[py, px, 2] = 255; dust[py, px, 3] = (40 + 200 * v).astype(np.uint8)
+        self.dust = Image.fromarray(dust)
         # 結晶片
         n = 70
         self.frag = dict(
@@ -127,7 +137,7 @@ class Background:
         self.bub = dict(x=rng.uniform(0, W, m), y=rng.uniform(0, H, m), r=rng.uniform(8, 22, m), spd=rng.uniform(8, 25, m), ph=rng.uniform(0, 6, m))
 
     def _make_nebula(self, rng):
-        w, h = W // 2, H // 2
+        w, h = int(W // 2 * 1.5), int(H // 2 * 1.5)   # 回転しても端が欠けないよう大きめに作る
         # フラクタルノイズ
         acc = np.zeros((h, w))
         for o, amp in [(4, 1.0), (8, 0.55), (16, 0.35), (32, 0.22), (64, 0.14), (128, 0.08)]:
@@ -135,22 +145,16 @@ class Background:
             im = Image.fromarray((g * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC)
             acc += np.array(im) / 255 * amp
         acc = (acc - acc.min()) / (acc.max() - acc.min())
-        y = np.linspace(-1, 1, h)[:, None]; x = np.linspace(-1, 1, w)[None, :]
+        y = np.linspace(-1.5, 1.5, h)[:, None]; x = np.linspace(-1.5, 1.5, w)[None, :]
         th = np.arctan2(y, x)
         wob = 1 + 0.12 * np.sin(th * 3 + 1) + 0.08 * np.sin(th * 5 + 2) + (acc - 0.5) * 0.35
         r = np.sqrt((x / 0.66) ** 2 + (y / 0.98) ** 2) / wob
         shape = np.clip((1.0 - r) / 0.25, 0, 1) ** 1.2           # 不規則な輪郭の大きな雲
         rim = np.exp(-((r - 0.78) / 0.2) ** 2)                     # 外周がやや明るい
         v = np.clip(shape * (0.25 + 0.75 * acc ** 1.3) + rim * acc * 0.6, 0, 1)
-        col = np.stack([25 + 150 * v ** 2.4, 70 + 150 * v ** 1.5, 180 + 75 * v ** 0.6], -1).clip(0, 255)
-        alpha = (np.clip(v * 1.3, 0, 1) * 175).astype(np.uint8)
+        col = np.stack([20 + 120 * v ** 2.4, 60 + 130 * v ** 1.5, 170 + 80 * v ** 0.6], -1).clip(0, 255)
+        alpha = (np.clip(v * 1.3, 0, 1) * 140).astype(np.uint8)
         neb = Image.fromarray(np.dstack([col.astype(np.uint8), alpha]), "RGBA")
-        d = ImageDraw.Draw(neb)
-        for _ in range(500):  # 雲の中の細かいきらめき
-            px, py = rng.uniform(0, w), rng.uniform(0, h)
-            if math.hypot((px / w * 2 - 1) / 0.66, (py / h * 2 - 1) / 0.98) > 0.9: continue
-            c = int(rng.uniform(170, 255))
-            d.point((px, py), fill=(c, min(255, c + 30), 255, int(rng.uniform(90, 200))))
         neb = neb.filter(ImageFilter.GaussianBlur(0.6))
         return neb
 
@@ -162,10 +166,14 @@ class Background:
         fr = self.base.copy()
         # 星雲：ゆっくり回転 + 呼吸
         sc = 1.0 + 0.03 * math.sin(t * 0.8)
-        neb = self.nebula.rotate(t * 2.5, resample=Image.BILINEAR, center=(W // 4, H // 4))
-        neb = neb.resize((int(W * sc), int(H * sc)), Image.BILINEAR)
-        fr.alpha_composite(neb, (int((W - neb.width) / 2), int((H - neb.height) / 2)))
-        d = ImageDraw.Draw(fr)
+        nw, nh = self.nebula.size
+        neb = self.nebula.rotate(t * 2.5, resample=Image.BILINEAR)
+        cw, chh = W / 2 / sc, H / 2 / sc
+        neb = neb.crop((int(nw / 2 - cw / 2), int(nh / 2 - chh / 2), int(nw / 2 + cw / 2), int(nh / 2 + chh / 2))).resize((W, H), Image.BILINEAR)
+        fr.alpha_composite(neb)
+        fr.alpha_composite(self.dust)
+        ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))   # 半透明を正しく重ねるため別レイヤーに描く
+        d = ImageDraw.Draw(ov)
         F = self.frag
         for i in range(len(F["ang"])):
             rr = (F["rad"][i] + F["spd"][i] * t) % 1150 + 60
@@ -186,6 +194,7 @@ class Background:
             r = B["r"][i]
             d.ellipse((x - r, y - r, x + r, y + r), fill=(120, 170, 230, 10), outline=(200, 225, 255, 110), width=1)
             d.ellipse((x - r * 0.45 - 2, y - r * 0.45 - 2, x - r * 0.45 + 2, y - r * 0.45 + 2), fill=(255, 255, 255, 170))
+        fr.alpha_composite(ov)
         return fr
 
 
@@ -306,49 +315,54 @@ def end_card():
 
 # ---------- particles ----------
 class Particles:
-    def __init__(self, chara_img, box, n=2600, seed=3):
+    """細かい光の粒（サブピクセル描画 + 発光 + きらめき）"""
+
+    def __init__(self, chara_img, box, n=9000, seed=3):
         rng = np.random.default_rng(seed)
         x0, y0, w, h = box
         m = np.array(chara_img.resize((w, h)).getchannel("A")) > 128
         ys, xs = np.nonzero(m)
         idx = rng.choice(len(xs), n)
-        self.tgt = np.stack([xs[idx] + x0, ys[idx] + y0], 1).astype(float)
+        self.tgt = np.stack([xs[idx] + x0 + rng.uniform(-.5, .5, n), ys[idx] + y0 + rng.uniform(-.5, .5, n)], 1)
         ang = rng.uniform(0, 2 * np.pi, n)
-        rad = rng.uniform(500, 1300, n)
+        rad = rng.uniform(450, 1400, n)
         cen = np.array([W / 2, H / 2])
         self.src = cen + np.stack([np.cos(ang), np.sin(ang)], 1) * rad[:, None]
         self.delay = rng.uniform(0, 0.45, n)
-        self.size = rng.choice([1.2, 1.8, 2.6], n, p=[0.5, 0.35, 0.15])
-        self.col = np.array([[150, 220, 255], [70, 160, 255], [30, 110, 255], [220, 245, 255]])[rng.integers(0, 4, n)]
+        self.bri = np.clip(rng.lognormal(-0.2, 0.55, n), 0.2, 4.0)
+        pal = np.array([[0.62, 0.86, 1.0], [0.30, 0.62, 1.0], [0.14, 0.42, 1.0], [0.88, 0.96, 1.0]])
+        self.col = pal[rng.choice(4, n, p=[.35, .3, .15, .2])]
+        self.tw = rng.uniform(6, 18, n); self.ph = rng.uniform(0, 6.3, n)
         self.burst = rng.normal(0, 1, (n, 2)) * 160
         self.cen = np.array([x0 + w / 2, y0 + h / 2])
 
     def draw(self, t):
-        """t: 0..T_PART+0.8 秒"""
-        lay = Image.new("RGB", (W // 2, H // 2), (0, 0, 0))
-        d = ImageDraw.Draw(lay)
         if t <= T_PART:
             p = np.clip((t - self.delay) / (T_PART - 0.45), 0, 1)
-            e = ease_in_out(p) if np.isscalar(p) else 3 * p * p - 2 * p ** 3
+            e = 3 * p * p - 2 * p ** 3
             off = self.src - self.tgt
             rot = (1 - e) * 2.4
             c, s = np.cos(rot), np.sin(rot)
             rx = off[:, 0] * c - off[:, 1] * s
             ry = off[:, 0] * s + off[:, 1] * c
             pos = self.tgt + np.stack([rx, ry], 1) * (1 - e)[:, None]
-            alpha = np.clip(t / 0.4, 0, 1) * (0.55 + 0.45 * e)
+            alpha = np.clip(t / 0.4, 0, 1) * (0.5 + 0.5 * e)
         else:
             k = (t - T_PART) / 0.8
             pos = self.tgt + self.burst * ease_out(k) + (self.tgt - self.cen) * 0.4 * ease_out(k)
             alpha = np.full(len(self.tgt), max(0, 1 - k))
-        for (x, y), r, col, a in zip(pos / 2, self.size, self.col, alpha):
-            if a <= 0.01: continue
-            cc = tuple(int(v * a) for v in col)
-            d.ellipse((x - r, y - r, x + r, y + r), fill=cc)
-        glow = lay.filter(ImageFilter.GaussianBlur(4))
-        lay = ImageChops.add(lay, glow)
-        lay = ImageChops.add(lay, glow)
-        return lay.resize((W, H), Image.BILINEAR)
+        b = alpha * self.bri * (0.6 + 0.4 * np.sin(t * self.tw + self.ph))
+        x, y = pos[:, 0], pos[:, 1]
+        ok = (x >= 0) & (x < W - 1) & (y >= 0) & (y < H - 1) & (b > 0.01)
+        x, y, b, col = x[ok], y[ok], b[ok], self.col[ok]
+        xi, yi = x.astype(int), y.astype(int); fx, fy = x - xi, y - yi
+        idx = np.concatenate([yi * W + xi, yi * W + xi + 1, (yi + 1) * W + xi, (yi + 1) * W + xi + 1])
+        wgt = np.concatenate([(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy]) * np.tile(b, 4)
+        acc = np.stack([np.bincount(idx, wgt * np.tile(col[:, c], 4), minlength=W * H) for c in range(3)], -1).reshape(H, W, 3)
+        small = acc.reshape(H // 4, 4, W // 4, 4, 3).sum((1, 3))
+        glow = Image.fromarray(np.clip(small * 120, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.2)).resize((W, H), Image.BILINEAR)
+        core = np.clip(acc * 430, 0, 255).astype(np.uint8)
+        return ImageChops.add(Image.fromarray(core), glow)
 
 
 # ---------- audio helpers ----------
@@ -417,7 +431,7 @@ def main():
     t_move = t_intro_talk + T_TALK
     t_p0 = t_move + T_MOVE - 0.2
     t_outro = t_p0 + D * len(ev)
-    wave_body, wave_hand, wave_pivot = make_wave_parts(C["finger_closed"])
+    wave_bodies, wave_hand, wave_pivot = make_wave_parts(C)
     total = t_outro + T_OUTRO
     print(f"total length: {total:.1f}s")
 
@@ -428,6 +442,9 @@ def main():
     small = (250, 1070, small_h)
     pbox = (int(W / 2 - big_h * ch_w / ch_h / 2), 880 - big_h, int(big_h * ch_w / ch_h), big_h)
     parts = Particles(C["cross_smirk"], pbox)
+    sc2 = 0.5
+    pbox2 = (int(W / 2 - big_h * sc2 * ch_w / ch_h / 2), int(880 - big_h / 2 - big_h * sc2 / 2), int(big_h * sc2 * ch_w / ch_h), int(big_h * sc2))
+    parts_end = Particles(C["wave_closed"], pbox2, seed=11)
 
     # 字幕・カード類を事前生成
     intro_b = bubble(cfg["intro_line"], (300, 905, 1620, 1050), tail=False)
@@ -502,7 +519,7 @@ def main():
         ot = t - t_outro
         if O_DIS0 <= ot < O_DIS0 + O_DIS:
             pt = T_PART * (1 - (ot - O_DIS0) / O_DIS)  # 集合の逆再生 = 粒子になって散る
-            fr = Image.fromarray(np.array(ImageChops.add(fr.convert("RGB"), parts.draw(pt)))).convert("RGBA")
+            fr = Image.fromarray(np.array(ImageChops.add(fr.convert("RGB"), parts_end.draw(pt)))).convert("RGBA")
 
         # --- キャラ ---
         mo = mouth_open(t, fi)
@@ -529,34 +546,53 @@ def main():
             glow.putalpha(im.getchannel("A").point(lambda v: int(v * speed * 0.9)))
             fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(12)), pos)
             fr.alpha_composite(im, pos)
-        elif ot >= O_WAVE0:
+        elif ot >= O_MOVE1:
+            ccx, ccy = big[0], big[1] - big_h / 2
             if ot < O_SPIN0:
-                # バイバイ（手首を支点に手を振る）
-                ang = 15 * math.sin((ot - O_WAVE0) * 2 * math.pi * 2.4) * min(1, (ot - O_WAVE0) / 0.15)
-                base = wave_body.copy()
-                hand = wave_hand.rotate(ang, resample=Image.BICUBIC, center=wave_pivot)
-                base.alpha_composite(hand)
+                # 中央でセリフ → バイバイ（手首を支点に手を振る）
+                bye = ot >= O_WAVE0
+                amp = 16 if bye else 8
+                ang = amp * math.sin((ot - O_MOVE1) * 2 * math.pi * (2.6 if bye else 1.6))
+                if bye:
+                    face = "wave_laugh" if int((ot - O_WAVE0) / 0.3) % 2 == 0 else "wave_closed"
+                elif mo:
+                    face = "wave_open"
+                elif blink(t):
+                    face = "wave_closed"
+                else:
+                    face = "wave_smirk"
+                base = wave_bodies[face].copy()
+                base.alpha_composite(wave_hand.rotate(ang, resample=Image.BICUBIC, center=wave_pivot))
                 h = big_h
                 im = base.resize((int(base.width * h / base.height), h), Image.LANCZOS)
+                pop = ease_back(min(1, (ot - O_MOVE1) / 0.25))   # ポーズ切替時に軽く弾む
+                if pop < 1:
+                    hh = int(h * (0.94 + 0.06 * pop)); im = im.resize((int(im.width * hh / h), hh)); h = hh
                 bob = math.sin(t * 2.2) * 4
                 fr.alpha_composite(im, (int(big[0] - im.width / 2), int(big[1] - h + bob)))
             elif ot < O_SPIN0 + O_SPIN:
+                # 登場と同じ「真ん中軸の高速回転」で小さくなりながら消える
                 st = (ot - O_SPIN0) / O_SPIN
-                e = st * st
-                theta = e * 5 * math.pi
-                sx = math.cos(theta)
-                h = big_h
-                im = chara_img("finger_closed", h)
-                if sx < 0: im = im.transpose(Image.FLIP_LEFT_RIGHT)
-                w = max(2, int(im.width * abs(sx)))
-                im = im.resize((w, h))
-                fade_a = 1 - ease_in_out((st - 0.35) / 0.65)
+                ang = st ** 2.2 * 1800
+                s = max(0.08, 1 - 0.9 * st ** 1.6)
+                h = max(4, int(big_h * s))
+                src = chara_img("wave_closed", big_h)
+                base_im = src.resize((max(2, int(src.width * s)), h), Image.BILINEAR)
+                speed = st
+                fade_a = 1 - ease_in_out((st - 0.55) / 0.45)
+                for lag, a_ in [(28, 0.22), (14, 0.4)]:
+                    if speed < 0.15: break
+                    g = base_im.rotate(ang - lag * speed * 1.8, resample=Image.BILINEAR, expand=True)
+                    g.putalpha(g.getchannel("A").point(lambda v, a_=a_: int(v * a_ * speed * fade_a)))
+                    fr.alpha_composite(g, (int(ccx - g.width / 2), int(ccy - g.height / 2)))
+                im = base_im.rotate(ang, resample=Image.BICUBIC, expand=True)
+                pos = (int(ccx - im.width / 2), int(ccy - im.height / 2))
                 glow = Image.new("RGBA", im.size, CYAN + (0,))
-                glow.putalpha(im.getchannel("A").point(lambda v: int(v * min(1, st * 1.5) * 0.95)))
-                fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(12)), (int(big[0] - w / 2), int(big[1] - h)))
+                glow.putalpha(im.getchannel("A").point(lambda v: int(v * min(1, st * 1.4) * 0.95)))
+                fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(12)), pos)
                 if fade_a > 0:
-                    im = im.copy(); im.putalpha(im.getchannel("A").point(lambda v: int(v * fade_a)))
-                    fr.alpha_composite(im, (int(big[0] - w / 2), int(big[1] - h)))
+                    im.putalpha(im.getchannel("A").point(lambda v: int(v * fade_a)))
+                    fr.alpha_composite(im, pos)
         else:
             if ot >= O_MOVE0:
                 e = ease_in_out((ot - O_MOVE0) / (O_MOVE1 - O_MOVE0))
