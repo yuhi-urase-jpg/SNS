@@ -443,7 +443,7 @@ def main():
     parts = Particles(C["cross_smirk"], pbox)
     sc2 = 0.5
     pbox2 = (int(W / 2 - big_h * sc2 * ch_w / ch_h / 2), int(880 - big_h / 2 - big_h * sc2 / 2), int(big_h * sc2 * ch_w / ch_h), int(big_h * sc2))
-    parts_end = Particles(C["wave_closed"], pbox2, seed=11)
+    parts_end = Particles(C["wave_smirk"], pbox2, seed=11)
 
     # 字幕・カード類を事前生成
     intro_b = bubble(cfg["intro_line"], (300, 905, 1620, 1050), tail=False)
@@ -553,7 +553,12 @@ def main():
                 amp = 16 if bye else 8
                 ang = amp * math.sin((ot - O_MOVE1) * 2 * math.pi * (2.6 if bye else 1.6))
                 if bye:
-                    face = "wave_laugh" if int((ot - O_WAVE0) / 0.3) % 2 == 0 else "wave_closed"
+                    # 目を開けたまま「バイバイ」、ときどき瞬き
+                    bt = ot - O_WAVE0
+                    if 0.55 <= bt % 1.1 < 0.65:
+                        face = "wave_closed"
+                    else:
+                        face = "wave_open" if int(bt / 0.3) % 2 == 0 else "wave_smirk"
                 elif mo:
                     face = "wave_open"
                 elif blink(t):
@@ -575,7 +580,7 @@ def main():
                 ang = st ** 2.2 * 1800
                 s = max(0.08, 1 - 0.9 * st ** 1.6)
                 h = max(4, int(big_h * s))
-                src = chara_img("wave_closed", big_h)
+                src = chara_img("wave_smirk", big_h)
                 base_im = src.resize((max(2, int(src.width * s)), h), Image.BILINEAR)
                 speed = st
                 fade_a = 1 - ease_in_out((st - 0.55) / 0.45)
