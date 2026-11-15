@@ -448,19 +448,19 @@ def main():
         elif t < t_intro_talk:
             st = (t - T_PART) / T_SPIN
             e = ease_out(st)
-            theta = e * 4 * math.pi
-            sx = math.cos(theta)
-            s = 0.45 + 0.55 * ease_back(st)
-            h = int(big_h * s)
-            im = chara_img("cross_smirk", h)
-            if sx < 0: im = im.transpose(Image.FLIP_LEFT_RIGHT)
-            w = max(2, int(im.width * abs(sx)))
-            im = im.resize((w, h))
+            # 体の真ん中を軸にくるくる回りながら大きくなって登場
+            ang = (1 - e) * 720
+            s = 0.15 + 0.85 * ease_back(st)
+            h = max(4, int(big_h * s))
+            im = chara_img("cross_smirk", big_h).resize((max(2, int(big_h * ch_w / ch_h * s)), h), Image.BILINEAR)
+            im = im.rotate(ang, resample=Image.BICUBIC, expand=True)
+            ccx, ccy = big[0], big[1] - big_h / 2   # 回転の中心（キャラの中心）
+            pos = (int(ccx - im.width / 2), int(ccy - im.height / 2))
             # 回転中の青い光
             glow = Image.new("RGBA", im.size, CYAN + (0,))
             glow.putalpha(im.getchannel("A").point(lambda v: int(v * (1 - e) * 0.9)))
-            fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(10)), (int(big[0] - w / 2), int(big[1] - h)))
-            fr.alpha_composite(im, (int(big[0] - w / 2), int(big[1] - h)))
+            fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(10)), pos)
+            fr.alpha_composite(im, pos)
         elif ot >= O_WAVE0:
             if ot < O_SPIN0:
                 # バイバイ（手首を支点に手を振る）
