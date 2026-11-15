@@ -96,27 +96,97 @@ def make_wave_parts(im):
     return Image.fromarray(body), Image.fromarray(hand), (105, 577)
 
 
-def make_bg():
-    y = np.linspace(0, 1, H)[:, None]
-    x = np.linspace(-1, 1, W)[None, :]
-    top, bot = np.array([3, 12, 32]), np.array([8, 34, 74])
-    img = top[None, None] * (1 - y[..., None]) + bot[None, None] * y[..., None]
-    img = img * np.ones((1, W, 1))
-    vign = 1 - 0.45 * (x ** 2)[..., None] * np.ones((H, 1, 1))
-    img = (img * vign).clip(0, 255).astype(np.uint8)
-    bg = Image.fromarray(img).convert("RGBA")
-    g = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(g)
-    for gx in range(0, W, 80):
-        d.line([(gx, 0), (gx, H)], fill=(80, 160, 255, 14))
-    for gy in range(0, H, 80):
-        d.line([(0, gy), (W, gy)], fill=(80, 160, 255, 14))
-    # 下部のパース床ライン
-    for i in range(18):
-        x0 = -800 + i * 200
-        d.line([(W / 2, 640), (x0 * 1.6 + W / 2 - 400, H)], fill=(80, 170, 255, 22))
-    bg.alpha_composite(g)
-    return bg
+class Background:
+    """青い粒子の星雲 + 浮遊する結晶片・泡 + 横ライン（AI・未来感）"""
+
+    def __init__(self, seed=7):
+        rng = np.random.default_rng(seed)
+        self.rng = rng
+        # ベース（ほぼ黒の紺）
+        y = np.linspace(-1, 1, H)[:, None]; x = np.linspace(-1, 1, W)[None, :]
+        r = np.sqrt((x * 0.9) ** 2 + y ** 2)
+        base = np.stack([2 + 6 * (1 - r), 6 + 16 * (1 - r), 16 + 40 * (1 - r)], -1).clip(0, 255)
+        self.base = Image.fromarray(base.astype(np.uint8)).convert("RGBA")
+        g = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(g)
+        # 細い横ライン（ゆるくカーブ）
+        for gy in range(-20, H + 40, 34):
+            pts = [(xx, gy + 18 * math.sin(xx / W * math.pi) * (1 if gy < H / 2 else -1) * abs(gy - H / 2) / (H / 2)) for xx in range(0, W + 1, 60)]
+            d.line(pts, fill=(170, 200, 255, 38), width=1)
+        # うっすら同心円
+        for rr, a in [(330, 40), (420, 26), (520, 18)]:
+            d.ellipse((W / 2 - rr, H / 2 - rr, W / 2 + rr, H / 2 + rr), outline=(150, 200, 255, a), width=2)
+        self.base.alpha_composite(g)
+        self.nebula = self._make_nebula(rng)
+        # 結晶片
+        n = 70
+        self.frag = dict(
+            ang=rng.uniform(0, 2 * np.pi, n), rad=rng.uniform(80, 1100, n), size=rng.choice([4, 6, 9, 13, 18, 26], n, p=[.25, .25, .2, .15, .1, .05]),
+            spd=rng.uniform(6, 22, n), rot=rng.uniform(0, 360, n), rspd=rng.uniform(-60, 60, n), kind=rng.integers(0, 3, n),
+            bright=rng.uniform(0.55, 1, n))
+        m = 30
+        self.bub = dict(x=rng.uniform(0, W, m), y=rng.uniform(0, H, m), r=rng.uniform(8, 22, m), spd=rng.uniform(8, 25, m), ph=rng.uniform(0, 6, m))
+
+    def _make_nebula(self, rng):
+        w, h = W // 2, H // 2
+        # フラクタルノイズ
+        acc = np.zeros((h, w))
+        for o, amp in [(4, 1.0), (8, 0.55), (16, 0.35), (32, 0.22), (64, 0.14), (128, 0.08)]:
+            g = rng.random((o * h // w + 2, o + 2))
+            im = Image.fromarray((g * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC)
+            acc += np.array(im) / 255 * amp
+        acc = (acc - acc.min()) / (acc.max() - acc.min())
+        y = np.linspace(-1, 1, h)[:, None]; x = np.linspace(-1, 1, w)[None, :]
+        th = np.arctan2(y, x)
+        wob = 1 + 0.12 * np.sin(th * 3 + 1) + 0.08 * np.sin(th * 5 + 2) + (acc - 0.5) * 0.35
+        r = np.sqrt((x / 0.66) ** 2 + (y / 0.98) ** 2) / wob
+        shape = np.clip((1.0 - r) / 0.25, 0, 1) ** 1.2           # 不規則な輪郭の大きな雲
+        rim = np.exp(-((r - 0.78) / 0.2) ** 2)                     # 外周がやや明るい
+        v = np.clip(shape * (0.25 + 0.75 * acc ** 1.3) + rim * acc * 0.6, 0, 1)
+        col = np.stack([25 + 150 * v ** 2.4, 70 + 150 * v ** 1.5, 180 + 75 * v ** 0.6], -1).clip(0, 255)
+        alpha = (np.clip(v * 1.3, 0, 1) * 175).astype(np.uint8)
+        neb = Image.fromarray(np.dstack([col.astype(np.uint8), alpha]), "RGBA")
+        d = ImageDraw.Draw(neb)
+        for _ in range(500):  # 雲の中の細かいきらめき
+            px, py = rng.uniform(0, w), rng.uniform(0, h)
+            if math.hypot((px / w * 2 - 1) / 0.66, (py / h * 2 - 1) / 0.98) > 0.9: continue
+            c = int(rng.uniform(170, 255))
+            d.point((px, py), fill=(c, min(255, c + 30), 255, int(rng.uniform(90, 200))))
+        neb = neb.filter(ImageFilter.GaussianBlur(0.6))
+        return neb
+
+    def _poly(self, kind, cx, cy, s, rot):
+        k = 6 if kind == 0 else 4
+        return [(cx + s * math.cos(math.radians(rot + i * 360 / k)), cy + s * math.sin(math.radians(rot + i * 360 / k)) * (0.8 if kind == 2 else 1)) for i in range(k)]
+
+    def frame(self, t):
+        fr = self.base.copy()
+        # 星雲：ゆっくり回転 + 呼吸
+        sc = 1.0 + 0.03 * math.sin(t * 0.8)
+        neb = self.nebula.rotate(t * 2.5, resample=Image.BILINEAR, center=(W // 4, H // 4))
+        neb = neb.resize((int(W * sc), int(H * sc)), Image.BILINEAR)
+        fr.alpha_composite(neb, (int((W - neb.width) / 2), int((H - neb.height) / 2)))
+        d = ImageDraw.Draw(fr)
+        F = self.frag
+        for i in range(len(F["ang"])):
+            rr = (F["rad"][i] + F["spd"][i] * t) % 1150 + 60
+            cx = W / 2 + math.cos(F["ang"][i]) * rr * 1.2
+            cy = H / 2 + math.sin(F["ang"][i]) * rr * 0.75
+            s = F["size"][i]; rot = F["rot"][i] + F["rspd"][i] * t
+            b = F["bright"][i]
+            pts = self._poly(F["kind"][i], cx, cy, s, rot)
+            if F["kind"][i] == 1:
+                d.polygon(pts, fill=(int(20 * b), int(40 * b), int(80 * b), 220), outline=(90, 140, 220, 160))
+            else:
+                d.polygon(pts, fill=(int(235 * b), int(240 * b), int(250 * b), 235))
+                d.polygon(pts[: len(pts) // 2 + 1] + [(cx, cy)], fill=(int(190 * b), int(205 * b), int(230 * b), 235))
+        B = self.bub
+        for i in range(len(B["x"])):
+            x = (B["x"][i] + math.sin(t * 0.7 + B["ph"][i]) * 20) % W
+            y = (B["y"][i] - B["spd"][i] * t) % H
+            r = B["r"][i]
+            d.ellipse((x - r, y - r, x + r, y + r), fill=(120, 170, 230, 10), outline=(200, 225, 255, 110), width=1)
+            d.ellipse((x - r * 0.45 - 2, y - r * 0.45 - 2, x - r * 0.45 + 2, y - r * 0.45 + 2), fill=(255, 255, 255, 170))
+        return fr
 
 
 def header_layer(cfg):
@@ -340,7 +410,7 @@ def main():
     D = cfg["photo_seconds"]
     ev = cfg["events"]
     C = load_chara()
-    bg = make_bg()
+    bg = Background()
     hdr = header_layer(cfg)
 
     t_intro_talk = T_PART + T_SPIN
@@ -395,14 +465,7 @@ def main():
         return cache[k]
 
     def render(t, fi):
-        fr = bg.copy()
-        # 背景を漂う粒
-        d = ImageDraw.Draw(fr)
-        for j in range(40):
-            x = (j * 197 + t * (12 + j % 5 * 6)) % W
-            y = (j * 131 + math.sin(t * 0.6 + j) * 30) % H
-            r = 1 + j % 3
-            d.ellipse((x - r, y - r, x + r, y + r), fill=(120, 190, 255, 60 + j % 4 * 25))
+        fr = bg.frame(t)
         fr.alpha_composite(hdr)
 
         # --- 写真パネル ---
