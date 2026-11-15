@@ -210,7 +210,7 @@ def header_layer(cfg):
 PANEL = (560, 165, 1850, 855)
 
 
-def panel_card(photo_path, month, name):
+def panel_card(photo_path, month, name, focus=(0.5, 0.5)):
     x0, y0, x1, y1 = PANEL
     pw, ph = x1 - x0, y1 - y0
     card = Image.new("RGBA", (pw + 80, ph + 80), (0, 0, 0, 0))
@@ -221,7 +221,7 @@ def panel_card(photo_path, month, name):
     base = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
     ImageDraw.Draw(base).rounded_rectangle((0, 0, pw - 1, ph - 1), 24, fill=(10, 28, 58, 235), outline=CYAN + (230,), width=3)
     # 写真: 全体が見えるように収め、余白は同じ写真のぼかしで埋める
-    pad = 18
+    pad = 10
     iw, ih = pw - pad * 2, ph - pad * 2
     if os.path.exists(photo_path):
         ph_img = Image.open(photo_path).convert("RGB")
@@ -230,14 +230,13 @@ def panel_card(photo_path, month, name):
         dd = ImageDraw.Draw(ph_img)
         text_bold(dd, (800, 400), f"{month} {name}", 90, (200, 230, 255), anchor="mm")
         text_bold(dd, (800, 530), "（写真差し替え予定）", 56, (140, 180, 230), anchor="mm")
-    sc_cover = max(iw / ph_img.width, ih / ph_img.height)
-    blur = ph_img.resize((int(ph_img.width * sc_cover) + 1, int(ph_img.height * sc_cover) + 1))
-    blur = blur.crop(((blur.width - iw) // 2, (blur.height - ih) // 2, (blur.width - iw) // 2 + iw, (blur.height - ih) // 2 + ih))
-    blur = blur.filter(ImageFilter.GaussianBlur(24))
-    blur = Image.eval(blur, lambda v: int(v * 0.55))
-    sc = min(iw / ph_img.width, ih / ph_img.height)
-    fg = ph_img.resize((int(ph_img.width * sc), int(ph_img.height * sc)), Image.LANCZOS)
-    blur.paste(fg, ((iw - fg.width) // 2, (ih - fg.height) // 2))
+    # 枠いっぱいに拡大し（cover）、人が写っている位置(focus)を中心に切り抜く
+    fx, fy = focus
+    sc = max(iw / ph_img.width, ih / ph_img.height)
+    big_img = ph_img.resize((max(iw, round(ph_img.width * sc)), max(ih, round(ph_img.height * sc))), Image.LANCZOS)
+    cx0 = int(min(max(fx * big_img.width - iw / 2, 0), big_img.width - iw))
+    cy0 = int(min(max(fy * big_img.height - ih / 2, 0), big_img.height - ih))
+    blur = big_img.crop((cx0, cy0, cx0 + iw, cy0 + ih))
     mask = Image.new("L", (iw, ih), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, iw - 1, ih - 1), 16, fill=255)
     base.paste(blur, (pad, pad), mask)
@@ -448,7 +447,7 @@ def main():
 
     # 字幕・カード類を事前生成
     intro_b = bubble(cfg["intro_line"], (300, 905, 1620, 1050), tail=False)
-    cards = [panel_card(os.path.join(ROOT, "assets/photos", e["photo"]), e["month"], e["name"]) for e in ev]
+    cards = [panel_card(os.path.join(ROOT, "assets/photos", e["photo"]), e["month"], e["name"], tuple(e.get("focus", (0.5, 0.5)))) for e in ev]
     badges = [badge(e["month"], e["name"]) for e in ev]
     bubbles = [bubble(e["line"], (470, 880, 1850, 1045)) for e in ev]
     out_b = bubble(cfg["outro_line"], (300, 905, 1620, 1050), tail=False)
