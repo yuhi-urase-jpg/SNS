@@ -18,7 +18,7 @@ CYAN2 = (40, 140, 255)
 
 # ---------- timeline (秒) ----------
 T_PART = 2.0      # 粒子が集まる
-T_SPIN = 1.4      # 回転登場
+T_SPIN = 1.1      # 回転登場
 T_TALK = 2.6      # 中央で挨拶
 T_MOVE = 0.8      # 左下へ移動
 SLIDE = 0.55      # 写真スライドイン
@@ -511,18 +511,23 @@ def main():
         elif t < t_intro_talk:
             st = (t - T_PART) / T_SPIN
             e = ease_out(st)
-            # 体の真ん中を軸にくるくる回りながら大きくなって登場
-            ang = (1 - e) * 720
-            s = 0.15 + 0.85 * ease_back(st)
+            # 体の真ん中を軸に高速回転しながら大きくなって登場（5回転、最後にキュッと止まる）
+            ang = (1 - (1 - (1 - st) ** 2.2)) * 1800
+            s = 0.12 + 0.88 * ease_back(st)
             h = max(4, int(big_h * s))
-            im = chara_img("cross_smirk", big_h).resize((max(2, int(big_h * ch_w / ch_h * s)), h), Image.BILINEAR)
-            im = im.rotate(ang, resample=Image.BICUBIC, expand=True)
+            base_im = chara_img("cross_smirk", big_h).resize((max(2, int(big_h * ch_w / ch_h * s)), h), Image.BILINEAR)
             ccx, ccy = big[0], big[1] - big_h / 2   # 回転の中心（キャラの中心）
+            speed = 1 - st                          # 速いほど残像を強く
+            for lag, a in [(28, 0.22), (14, 0.4)]:   # 残像（モーションブラー風）
+                if speed < 0.15: break
+                g = base_im.rotate(ang + lag * speed * 1.8, resample=Image.BILINEAR, expand=True)
+                g.putalpha(g.getchannel("A").point(lambda v, a=a: int(v * a * speed)))
+                fr.alpha_composite(g, (int(ccx - g.width / 2), int(ccy - g.height / 2)))
+            im = base_im.rotate(ang, resample=Image.BICUBIC, expand=True)
             pos = (int(ccx - im.width / 2), int(ccy - im.height / 2))
-            # 回転中の青い光
             glow = Image.new("RGBA", im.size, CYAN + (0,))
-            glow.putalpha(im.getchannel("A").point(lambda v: int(v * (1 - e) * 0.9)))
-            fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(10)), pos)
+            glow.putalpha(im.getchannel("A").point(lambda v: int(v * speed * 0.9)))
+            fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(12)), pos)
             fr.alpha_composite(im, pos)
         elif ot >= O_WAVE0:
             if ot < O_SPIN0:
