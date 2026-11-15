@@ -22,7 +22,17 @@ T_SPIN = 1.4      # 回転登場
 T_TALK = 2.6      # 中央で挨拶
 T_MOVE = 0.8      # 左下へ移動
 SLIDE = 0.55      # 写真スライドイン
-T_OUTRO = 3.4
+# エンディング（t_outro からの相対秒）
+O_MOVE0, O_MOVE1 = 0.25, 1.05   # 中央へ戻る
+O_TALK0 = 1.15                  # 締めのセリフ
+O_TALK_LEN = 3.1
+O_WAVE0 = O_TALK0 + O_TALK_LEN + 0.1   # バイバイ
+O_WAVE = 1.4
+O_SPIN0 = O_WAVE0 + O_WAVE      # 回転して粒子に
+O_SPIN = 1.1
+O_DIS0 = O_SPIN0 + 0.45         # 粒子化スタート
+O_DIS = 1.6
+T_OUTRO = O_DIS0 + O_DIS + 0.4
 T_FADE = 0.5
 
 
@@ -62,6 +72,28 @@ def load_chara():
         a[..., 3] = np.where(a[..., 3] < 40, 0, a[..., 3])  # 薄いゴミを除去
         out[f[:-4]] = Image.fromarray(a)
     return out
+
+
+def make_wave_parts(im):
+    """人差し指ポーズから「手」だけを切り出す（バイバイ用）"""
+    a = np.array(im)
+    alpha = a[..., 3] > 100
+    bx0, by0, bx1, by1 = 40, 425, 190, 577   # 切り抜き座標系での手の範囲
+    box = np.zeros_like(alpha); box[by0:by1, bx0:bx1] = True
+    region = alpha & box
+    m = np.zeros_like(alpha); m[505, 100] = True
+    for _ in range(400):
+        n = m.copy()
+        n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]
+        n &= region
+        if (n == m).all(): break
+        m = n
+    for _ in range(3):  # 縁のアンチエイリアス分を含める
+        n = m.copy(); n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]
+        m = n & box
+    hand = a.copy(); hand[..., 3] = np.where(m, a[..., 3], 0)
+    body = a.copy(); body[..., 3] = np.where(m, 0, a[..., 3])
+    return Image.fromarray(body), Image.fromarray(hand), (105, 577)
 
 
 def make_bg():
@@ -152,6 +184,8 @@ def badge(month, name):
 
 
 def wrap(text, f, maxw):
+    if "\n" in text:
+        return [l for part in text.split("\n") for l in wrap(part, f, maxw)]
     lines, cur = [], ""
     for ch in text:
         if f.getbbox(cur + ch)[2] > maxw and cur:
@@ -313,6 +347,7 @@ def main():
     t_move = t_intro_talk + T_TALK
     t_p0 = t_move + T_MOVE - 0.2
     t_outro = t_p0 + D * len(ev)
+    wave_body, wave_hand, wave_pivot = make_wave_parts(C["finger_closed"])
     total = t_outro + T_OUTRO
     print(f"total length: {total:.1f}s")
 
@@ -329,15 +364,14 @@ def main():
     cards = [panel_card(os.path.join(ROOT, "assets/photos", e["photo"]), e["month"], e["name"]) for e in ev]
     badges = [badge(e["month"], e["name"]) for e in ev]
     bubbles = [bubble(e["line"], (470, 880, 1850, 1045)) for e in ev]
-    endc = end_card()
-    out_b = bubble(cfg["outro_line"], (470, 880, 1850, 1045))
+    out_b = bubble(cfg["outro_line"], (300, 905, 1620, 1050), tail=False)
 
     # セリフ区間 (開始, 長さ) — 音声がない場合は文字数から推定
     def speak_len(s): return min(len(s) * 0.115, D - 0.5)
     speech = [(t_intro_talk + 0.2, min(len(cfg["intro_line"]) * 0.11, T_TALK - 0.3))]
     for i, e in enumerate(ev):
         speech.append((t_p0 + i * D + 0.35, speak_len(e["line"])))
-    speech.append((t_outro + 0.4, len(cfg["outro_line"]) * 0.12))
+    speech.append((t_outro + O_TALK0 + 0.1, O_TALK_LEN - 0.2))
     env = load_envelope(args.voice) if args.voice else None
 
     def mouth_open(t, fi):
@@ -378,13 +412,11 @@ def main():
             seg_t = t - (t_p0 + k * D)
             if t >= t_outro:
                 ot = t - t_outro
-                # 最後の写真が退場、エンドカード登場
+                # 最後の写真が退場
                 if ot < SLIDE:
                     e1 = ease_out(ot / SLIDE)
                     c = cards[k].copy(); c.putalpha(ImageChops.multiply(c.getchannel("A"), Image.new("L", c.size, int(255 * (1 - e1)))))
                     fr.alpha_composite(c, (int(PANEL[0] - 40 - 300 * e1), PANEL[1] - 40))
-                e2 = ease_back(ot / 0.7)
-                fr.alpha_composite(endc, (int(PANEL[0] - 40 + (1 - e2) * 1400), PANEL[1] - 40))
             else:
                 # 前の写真の退場
                 if k > 0 and seg_t < SLIDE:
@@ -404,6 +436,10 @@ def main():
         # --- 粒子 ---
         if t < T_PART + 0.8:
             fr = Image.fromarray(np.array(ImageChops.add(fr.convert("RGB"), parts.draw(t)))).convert("RGBA")
+        ot = t - t_outro
+        if O_DIS0 <= ot < O_DIS0 + O_DIS:
+            pt = T_PART * (1 - (ot - O_DIS0) / O_DIS)  # 集合の逆再生 = 粒子になって散る
+            fr = Image.fromarray(np.array(ImageChops.add(fr.convert("RGB"), parts.draw(pt)))).convert("RGBA")
 
         # --- キャラ ---
         mo = mouth_open(t, fi)
@@ -425,8 +461,41 @@ def main():
             glow.putalpha(im.getchannel("A").point(lambda v: int(v * (1 - e) * 0.9)))
             fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(10)), (int(big[0] - w / 2), int(big[1] - h)))
             fr.alpha_composite(im, (int(big[0] - w / 2), int(big[1] - h)))
+        elif ot >= O_WAVE0:
+            if ot < O_SPIN0:
+                # バイバイ（手首を支点に手を振る）
+                ang = 15 * math.sin((ot - O_WAVE0) * 2 * math.pi * 2.4) * min(1, (ot - O_WAVE0) / 0.15)
+                base = wave_body.copy()
+                hand = wave_hand.rotate(ang, resample=Image.BICUBIC, center=wave_pivot)
+                base.alpha_composite(hand)
+                h = big_h
+                im = base.resize((int(base.width * h / base.height), h), Image.LANCZOS)
+                bob = math.sin(t * 2.2) * 4
+                fr.alpha_composite(im, (int(big[0] - im.width / 2), int(big[1] - h + bob)))
+            elif ot < O_SPIN0 + O_SPIN:
+                st = (ot - O_SPIN0) / O_SPIN
+                e = st * st
+                theta = e * 5 * math.pi
+                sx = math.cos(theta)
+                h = big_h
+                im = chara_img("finger_closed", h)
+                if sx < 0: im = im.transpose(Image.FLIP_LEFT_RIGHT)
+                w = max(2, int(im.width * abs(sx)))
+                im = im.resize((w, h))
+                fade_a = 1 - ease_in_out((st - 0.35) / 0.65)
+                glow = Image.new("RGBA", im.size, CYAN + (0,))
+                glow.putalpha(im.getchannel("A").point(lambda v: int(v * min(1, st * 1.5) * 0.95)))
+                fr.alpha_composite(glow.filter(ImageFilter.GaussianBlur(12)), (int(big[0] - w / 2), int(big[1] - h)))
+                if fade_a > 0:
+                    im = im.copy(); im.putalpha(im.getchannel("A").point(lambda v: int(v * fade_a)))
+                    fr.alpha_composite(im, (int(big[0] - w / 2), int(big[1] - h)))
         else:
-            if t < t_move:
+            if ot >= O_MOVE0:
+                e = ease_in_out((ot - O_MOVE0) / (O_MOVE1 - O_MOVE0))
+                cx = small[0] + (big[0] - small[0]) * e
+                fy = small[1] + (big[1] - small[1]) * e
+                h = int(small[2] + (big[2] - small[2]) * e); pose = "cross"
+            elif t < t_move:
                 cx, fy, h = big; pose = "cross"
             elif t < t_move + T_MOVE:
                 e = ease_in_out((t - t_move) / T_MOVE)
@@ -435,9 +504,7 @@ def main():
                 h = int(big[2] + (small[2] - big[2]) * e); pose = "cross"
             else:
                 cx, fy, h = small; pose = "right"
-            if t >= t_outro + 0.3:
-                name = f"{pose}_laugh" if not mo else f"{pose}_open"
-            elif mo:
+            if mo:
                 name = f"{pose}_open"
             elif blink(t):
                 name = f"{pose}_closed"
@@ -459,8 +526,8 @@ def main():
             k = min(int((t - t_p0) // D), len(ev) - 1)
             st = t - (t_p0 + k * D)
             put_bubble(bubbles[k], min(1, max(0, st - 0.25) / 0.25) * min(1, (D - st) / 0.15))
-        elif t >= t_outro + 0.3:
-            put_bubble(out_b, min(1, (t - t_outro - 0.3) / 0.25))
+        elif t_outro + O_TALK0 <= t < t_outro + O_WAVE0 + 0.5:
+            put_bubble(out_b, min(1, (ot - O_TALK0) / 0.25) * min(1, (O_WAVE0 + 0.5 - ot) / 0.25))
 
         # 冒頭・最後のフェード
         fade = min(1, t / 0.3) * min(1, (total - t) / T_FADE)
@@ -475,7 +542,7 @@ def main():
 
     # SE
     sfx_ev = [("sparkle", 0.2), ("spin", T_PART - 0.1), ("slide", t_move)]
-    sfx_ev += [("slide", t_p0 + i * D) for i in range(len(ev))] + [("end", t_outro + 0.1)]
+    sfx_ev += [("slide", t_p0 + i * D) for i in range(len(ev))] + [("slide", t_outro), ("spin", t_outro + O_SPIN0 - 0.1), ("sparkle", t_outro + O_DIS0)]
     pcm, sr = synth_sfx(sfx_ev, total)
     sfx_path = os.path.join(ROOT, "out/sfx.wav")
     with wave.open(sfx_path, "w") as w:
