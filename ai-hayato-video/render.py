@@ -24,10 +24,11 @@ T_MOVE = 0.8      # 左下へ移動
 SLIDE = 0.55      # 写真スライドイン
 # エンディング（t_outro からの相対秒）
 O_MOVE0, O_MOVE1 = 0.25, 1.05   # 中央へ戻る
-O_TALK0 = 1.15                  # 締めのセリフ
-O_TALK_LEN = 3.1
-O_WAVE0 = O_TALK0 + O_TALK_LEN + 0.1   # バイバイ
-O_WAVE = 1.4
+# 締めのセリフ3つ (開始, 長さ)：①お辞儀 ②手を振りながら ③「あとは任せたよ！」
+O_LINES = [(1.15, 1.8), (3.05, 1.8), (4.95, 2.8)]
+O_TALK0 = O_LINES[0][0]
+O_WAVE0 = O_LINES[-1][0] + O_LINES[-1][1] + 0.05   # バイバイ
+O_WAVE = 0.5
 O_SPIN0 = O_WAVE0 + O_WAVE      # 回転して粒子に
 O_SPIN = 1.1
 O_DIS0 = O_SPIN0 + 0.55         # 粒子化スタート
@@ -450,14 +451,15 @@ def main():
     cards = [panel_card(os.path.join(ROOT, "assets/photos", e["photo"]), e["month"], e["name"], tuple(e.get("focus", (0.5, 0.5)))) for e in ev]
     badges = [badge(e["month"], e["name"]) for e in ev]
     bubbles = [bubble(e["line"], (470, 880, 1850, 1045)) for e in ev]
-    out_b = bubble(cfg["outro_line"], (300, 905, 1620, 1050), tail=False)
+    out_bs = [bubble(l, (300, 905, 1620, 1050), tail=False) for l in cfg["outro_lines"]]
 
     # セリフ区間 (開始, 長さ) — 音声がない場合は文字数から推定
     def speak_len(s): return min(len(s) * 0.115, D - 0.5)
     speech = [(t_intro_talk + 0.2, min(len(cfg["intro_line"]) * 0.11, T_TALK - 0.3))]
     for i, e in enumerate(ev):
         speech.append((t_p0 + i * D + 0.35, speak_len(e["line"])))
-    speech.append((t_outro + O_TALK0 + 0.1, O_TALK_LEN - 0.2))
+    for (s0, ln) in O_LINES[1:]:
+        speech.append((t_outro + s0 + 0.1, ln - 0.3))
     env = load_envelope(args.voice) if args.voice else None
 
     def mouth_open(t, fi):
@@ -547,7 +549,15 @@ def main():
             fr.alpha_composite(im, pos)
         elif ot >= O_MOVE1:
             ccx, ccy = big[0], big[1] - big_h / 2
-            if ot < O_SPIN0:
+            if ot < O_LINES[1][0] - 0.05:
+                # 「今年も1年間お疲れ様でした」でお辞儀
+                bt = ot - O_MOVE1
+                im = chara_img("bow", big_h)
+                k = ease_back(min(1, bt / 0.3))
+                hh = int(big_h * (0.93 + 0.07 * k))
+                im = im.resize((int(im.width * hh / big_h), hh))
+                fr.alpha_composite(im, (int(big[0] - im.width / 2), int(big[1] - hh)))
+            elif ot < O_SPIN0:
                 # 中央でセリフ → バイバイ（手首を支点に手を振る）
                 bye = ot >= O_WAVE0
                 amp = 16 if bye else 8
@@ -569,7 +579,7 @@ def main():
                 base.alpha_composite(wave_hand.rotate(ang, resample=Image.BICUBIC, center=wave_pivot))
                 h = big_h
                 im = base.resize((int(base.width * h / base.height), h), Image.LANCZOS)
-                pop = ease_back(min(1, (ot - O_MOVE1) / 0.25))   # ポーズ切替時に軽く弾む
+                pop = ease_back(min(1, (ot - O_LINES[1][0] + 0.05) / 0.25))   # ポーズ切替時に軽く弾む
                 if pop < 1:
                     hh = int(h * (0.94 + 0.06 * pop)); im = im.resize((int(im.width * hh / h), hh)); h = hh
                 bob = math.sin(t * 2.2) * 4
@@ -634,8 +644,10 @@ def main():
             k = min(int((t - t_p0) // D), len(ev) - 1)
             st = t - (t_p0 + k * D)
             put_bubble(bubbles[k], min(1, max(0, st - 0.25) / 0.25) * min(1, (D - st) / 0.15))
-        elif t_outro + O_TALK0 <= t < t_outro + O_WAVE0 + 0.5:
-            put_bubble(out_b, min(1, (ot - O_TALK0) / 0.25) * min(1, (O_WAVE0 + 0.5 - ot) / 0.25))
+        elif t_outro + O_TALK0 <= t < t_outro + O_WAVE0:
+            for (s0, ln), bb in zip(O_LINES, out_bs):
+                if s0 <= ot < s0 + ln + 0.1:
+                    put_bubble(bb, min(1, (ot - s0) / 0.2) * min(1, (s0 + ln + 0.1 - ot) / 0.15))
 
         # 冒頭・最後のフェード
         fade = min(1, t / 0.3) * min(1, (total - t) / T_FADE)
